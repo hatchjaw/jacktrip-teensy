@@ -1,0 +1,2 @@
+# set(CMAKE_PREFIX_PATH $ENV{HOME}/Qt5.5.0/5.5/gcc_64)
+# add_subdirectory(jacktrip)
