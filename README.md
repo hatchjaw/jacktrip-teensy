@@ -1,9 +1,9 @@
-# PIR 9 - Audio
+# Teensy as a JackTrip client
 
 ## Building
 
 The project is built with [Platformio](https://platformio.org). 
-Supported hardware: Teensy 4.1
+Supported hardware: Teensy 4.1; a host machine running Ubuntu 20.04.
 
 ```shell
 # Clone the repo
@@ -36,14 +36,16 @@ JackTrip uses Jack as its audio server. Install or update Jack as per the
 instructions 
 [here](https://qjackctl.sourceforge.io/qjackctl-index.html#Installation).
 
-### QJackControl / Cadence
+### QJackCtl / Cadence
 
-You might get on just fine with QJackControl.
+You might get on just fine with QJackCtl.
 [Cadence](https://kx.studio/Applications:Cadence) potentially offers a better
 experience if you need to connect to an external audio interface (perhaps
 because it's not possible to change the sampling rate of your built-in audio
-device). Install Cadence as per the 
-[instructions](https://github.com/falkTX/Cadence/blob/master/INSTALL.md)
+card). Install Cadence as per the 
+[instructions](https://github.com/falkTX/Cadence/blob/master/INSTALL.md);
+once installed, the tools _Catia_ and _Logs_ are very useful.
+
 
 ### PlatformIO
 
@@ -51,10 +53,11 @@ Install platformIO's
 [udev rules](https://docs.platformio.org/en/latest/core/installation/udev-rules.html)
 or [Teensy's](https://www.pjrc.com/teensy/loader_linux.html), but not both.
 
-Select the 'teensy41' build profile, and, if using PlatformIO under
-CLion, remove the 'Build' prelaunch step for PlatformIO run/debug 
-configurations — better still, just use `pio run -t upload` to build and upload
-to teensy from the terminal.
+If using PlatformIO under
+CLion, select the 'teensy41' build profile, and remove the 'Build' prelaunch
+step for PlatformIO run/debug 
+configurations — better still use 
+`pio run -t upload` to build and upload to teensy from the terminal.
 
 ### Hardware
 
@@ -73,11 +76,6 @@ If in doubt, try:
 - subnet mask: `255.255.255.0`
 - gateway: `192.168.1.1`
 - address: `192.168.1.2`
-
-### Build options
-
-The fields and defines at the start of `main.cpp` are options which may be useful to tinker with (e.g. DHCP or manual ip
-configuration).
 
 ## Running
 
