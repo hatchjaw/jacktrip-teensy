@@ -112,9 +112,10 @@ computer and hear audio that's being sent from Teensy to the server.
 
 - TCP connection to exchange UDP ports between client and server
 - Client starts to send UDP packets, the server uses the header to initialize jack parameters
-- When at least a second client is connected, the server starts broadcasting the mixed audio to everyone.
 
-### TODO
+[//]: # (- When at least a second client is connected, the server starts broadcasting the mixed audio to everyone.)
+
+## TODO
 
 - Transmit audio
 - Filter microphone audio

@@ -2,6 +2,7 @@
 #include "PacketHeader.h"
 #include <Audio.h>
 #include <OSCBundle.h>
+#include "faust/SpringGrain/SpringGrain.h"
 
 //region Network parameters
 // This MAC address is arbitrarily assigned to the ethernet shield.
@@ -35,6 +36,14 @@ const uint16_t NUM_SAMPLES = 256;
 const uint8_t NUM_BUFFERS = NUM_SAMPLES / AUDIO_BLOCK_SAMPLES;
 //endregion
 
+//region Faust parameter names
+const std::string GRAIN_SIZE = "Grain length (s)";
+const std::string GRAIN_DENSITY = "Grain density";
+const std::string GRAIN_SPEED = "Grain speed";
+const std::string GRAIN_REGULARITY = "Rhythm";
+const std::string FREEZE = "Freeze";
+//endregion
+
 // The UDP socket we use
 EthernetUDP Udp;
 
@@ -45,7 +54,6 @@ uint16_t remote_udp_port;
 // Audio shield driver
 AudioControlSGTL5000 audioShield;
 AudioOutputI2S out;
-AudioInputI2S in;
 
 // Audio circular buffers
 AudioPlayQueue pql;
@@ -53,24 +61,25 @@ AudioPlayQueue pqr;
 AudioRecordQueue rql;
 AudioRecordQueue rqr;
 
-// TODO: work out why it won't work without this dummy sine.
-AudioSynthWaveformSine sine;
-AudioMixer4 mixer2;
-AudioMixer4 mixer1;
-AudioConnection patchCord1(pql, 0, mixer1, 0);
-AudioConnection patchCord2(pqr, 0, mixer2, 0);
-AudioConnection patchCord3(mixer2, 0, out, 1);
-AudioConnection patchCord4(mixer2, rqr);
-AudioConnection patchCord5(mixer1, 0, out, 0);
-AudioConnection patchCord6(mixer1, rql);
-AudioConnection patchCord7(sine, 0, mixer1, 1);
-AudioConnection patchCord8(sine, 0, mixer2, 1);
+SpringGrain sg;
+AudioMixer4 mixerL;
+AudioMixer4 mixerR;
 
 // Audio system connections
-//AudioConnection outL(pql, 0, out, 0);
-//AudioConnection outR(pqr, 0, out, 1);
-//AudioConnection inL(in, 0, rql, 0);
-//AudioConnection inR(in, 1, rqr, 0);
+// Play queue L (jacktrip in) routed to mixer L, granulator in L, and teensy out L.
+AudioConnection patchCord1(pql, 0, mixerL, 0);
+AudioConnection patchCord2(pql, 0, sg, 0);
+AudioConnection patchCord3(pql, 0, out, 0);
+// Play queue R (jacktrip in) routed to mixer R, granulator in R, and teensy out R.
+AudioConnection patchCord4(pqr, 0, mixerR, 0);
+AudioConnection patchCord5(pqr, 0, sg, 1);
+AudioConnection patchCord6(pqr, 0, out, 1);
+// Granulator outs routed to mixers
+AudioConnection patchCord7(sg, 0, mixerL, 1);
+AudioConnection patchCord8(sg, 1, mixerR, 1);
+// Mixer outs routed to record queues (jacktrip out).
+AudioConnection patchCord9(mixerL, rql);
+AudioConnection patchCord10(mixerR, rqr);
 //endregion
 
 // Shorthand to block and do nothing
@@ -105,14 +114,13 @@ bool containsOnly(const uint8_t *bufferToCheck, uint8_t value, size_t length);
 void attemptJacktripConnection(uint16_t timeout = 1000);
 
 void closeJacktripConnection();
-//endregion
-
 
 void stopAudio();
 
 EthernetLinkStatus startEthernet();
 
 void startAudio();
+//endregion
 
 void setup() {
     // Open serial communications
@@ -152,49 +160,12 @@ void setup() {
     pqr.setMaxBuffers(NUM_BUFFERS);
     Serial.printf("Allocated %d buffers\n", NUM_BUFFERS * NUM_CHANNELS + 2 + 20);
 
-    audioShield.volume(0.5);
-    audioShield.micGain(20);
-    audioShield.inputSelect(AUDIO_INPUT_MIC);
-    //audioShield.headphoneSelect(AUDIO_HEADPHONE_DAC);
+    // Granular engine parameters
+    sg.setParamValue(GRAIN_SPEED, -.85);
+    sg.setParamValue(GRAIN_DENSITY, 4.5);
+    sg.setParamValue(GRAIN_SIZE, .045);
 
     startAudio();
-
-    AudioProcessorUsageMaxReset();
-    AudioMemoryUsageMaxReset();
-}
-
-EthernetLinkStatus startEthernet() {
-    Ethernet.setSocketNum(4);
-    if (BUFFER_SIZE > FNET_SOCKET_DEFAULT_SIZE) {
-        Ethernet.setSocketSize(BUFFER_SIZE);
-    }
-
-#ifdef CONF_DHCP
-    bool dhcpFailed = false;
-    // start the Ethernet
-    if (!Ethernet.begin(mac)) {
-        dhcpFailed = true;
-    }
-#endif
-
-#ifdef CONF_MANUAL
-    Ethernet.begin(mac, ip);
-#endif
-
-    if (Ethernet.linkStatus() != LinkON) {
-        Serial.println("Ethernet cable is not connected.");
-    } else {
-        Serial.println("Ethernet connected.");
-    }
-
-#ifdef CONF_DHCP
-    if (dhcpFailed) {
-        Serial.println("DHCP conf failed");
-        WAIT_INFINITE();
-    }
-#endif
-
-    return Ethernet.linkStatus();
 }
 
 void loop() {
@@ -202,7 +173,7 @@ void loop() {
     // TODO filter audio before transmitting
 
     if (connected) {
-        // Send audio when we have enough samples to fill a packet
+        // Send audio when there are enough samples to fill a packet
         while (rql.available() >= NUM_BUFFERS &&
                (NUM_CHANNELS == 1 || (NUM_CHANNELS > 1 && rqr.available() >= NUM_BUFFERS))) {
             HEADER.TimeStamp = seq;
@@ -286,7 +257,7 @@ void loop() {
         if (millis() - last_perf_report > PERF_REPORT_DELAY) {
             Serial.printf("Audio memory in use: %d blocks; processor %f %%\n",
                           AudioMemoryUsage(),
-                          AudioProcessorUsage() * 100);
+                          AudioProcessorUsage());
             last_perf_report = millis();
         }
     } else {
@@ -297,13 +268,54 @@ void loop() {
     }
 }
 
+EthernetLinkStatus startEthernet() {
+    Ethernet.setSocketNum(4);
+    if (BUFFER_SIZE > FNET_SOCKET_DEFAULT_SIZE) {
+        Ethernet.setSocketSize(BUFFER_SIZE);
+    }
+
+#ifdef CONF_DHCP
+    bool dhcpFailed = false;
+    // start the Ethernet
+    if (!Ethernet.begin(mac)) {
+        dhcpFailed = true;
+    }
+#endif
+
+#ifdef CONF_MANUAL
+    Ethernet.begin(mac, ip);
+#endif
+
+    if (Ethernet.linkStatus() != LinkON) {
+        Serial.println("Ethernet cable is not connected.");
+    } else {
+        Serial.println("Ethernet connected.");
+    }
+
+#ifdef CONF_DHCP
+    if (dhcpFailed) {
+        Serial.println("DHCP conf failed");
+        WAIT_INFINITE();
+    }
+#endif
+
+    return Ethernet.linkStatus();
+}
+
 void startAudio() {
     audioShield.enable();
+    audioShield.volume(0.5);
+    audioShield.micGain(20);
+    audioShield.inputSelect(AUDIO_INPUT_MIC);
+    //audioShield.headphoneSelect(AUDIO_HEADPHONE_DAC);
 
     rql.begin();
     if (NUM_CHANNELS > 1) {
         rqr.begin();
     }
+
+    AudioProcessorUsageMaxReset();
+    AudioMemoryUsageMaxReset();
 }
 
 void stopAudio() {
