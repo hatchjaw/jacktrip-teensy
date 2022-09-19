@@ -59,7 +59,7 @@ if (!Ethernet.begin(clientMAC)) {
 }
 
 bool JackTripClient::connect(uint16_t timeout) {
-    // Query jacktrip udp port
+    // Attempt handshake with JackTrip server via TCP port.
     Serial.print("JackTripClient: Connecting to JackTrip server at ");
     serverIP.printTo(Serial);
     Serial.printf(":%d... ", REMOTE_TCP_PORT);
@@ -84,7 +84,7 @@ bool JackTripClient::connect(uint16_t timeout) {
     serverUdpPort = port;
     Serial.printf("JackTripClient: Server port is %d\n", serverUdpPort);
 
-    // start UDP
+    // TODO: better connection success check
     return connected;// && 1 == udp.begin(LOCAL_UDP_PORT);
 }
 

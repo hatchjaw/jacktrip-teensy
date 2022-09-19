@@ -10,7 +10,6 @@
 #include <NativeEthernet.h>
 //#include <PacketHeader.h> // Might be nice to include this from jacktrip rather than redefining it here...
 
-
 #define CONF_MANUAL
 
 /**
@@ -101,10 +100,22 @@ private:
      */
     void update(void) override;
 
+    /**
+     * Receive a JackTrip packet containing audio to route to this object's
+     * outputs.
+     */
     void receivePacket();
 
+    /**
+     * Check whether a packet received from the JackTrip server is an exit
+     * packet.
+     * @return
+     */
     bool isExitPacket();
 
+    /**
+     * Send a JackTrip packet containing audio routed to this object's inputs.
+     */
     void sendPacket();
 
     /**
@@ -124,7 +135,7 @@ private:
     /**
      * UDP port of the jacktrip server.
      */
-    uint32_t serverUdpPort;
+    uint32_t serverUdpPort{0};
 
     bool connected{false};
 
@@ -132,15 +143,15 @@ private:
     /**
      * UDP packet buffer (in/out)
      */
-    uint8_t buffer[UDP_BUFFER_SIZE];
+    uint8_t buffer[UDP_BUFFER_SIZE]{};
 
     /**
-     * The final required component is inputQueueArray[], which should be a
+     * "The final required component is inputQueueArray[], which should be a
      * private variable.
-     * The size must match the number passed to the AudioStream constructor.
+     * The size must match the number passed to the AudioStream constructor."
      * TODO: maybe don't need this?
      */
-    audio_block_t *inputQueueArray[2];
+    audio_block_t *inputQueueArray[2]{};
     /**
      * The header to send with every outgoing JackTrip packet.
      * TimeStamp and SeqNumber should be incremented accordingly.
