@@ -121,3 +121,10 @@ computer and hear audio that's being sent from Teensy to the server.
 - Filter microphone audio
 - Autoconfiguration with OpenSoundControl
 - Restart strategy after receiving an exit packet (currently need a program reset)
+
+## NEXT
+- Look at structure of a faust2teensy object
+- Add a faust2teensy object to the sketch
+- Inherit from AudioStream
+    - call UDP::read() within AudioStream::update()
+    - somehow sync UDP and AudioStream

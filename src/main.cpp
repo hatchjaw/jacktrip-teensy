@@ -3,6 +3,7 @@
 #include <Audio.h>
 #include <OSCBundle.h>
 #include "faust/SpringGrain/SpringGrain.h"
+#include "JackTripClient.h"
 
 //region Network parameters
 // This MAC address is arbitrarily assigned to the ethernet shield.
@@ -55,6 +56,8 @@ uint16_t remote_udp_port;
 AudioControlSGTL5000 audioShield;
 AudioOutputI2S out;
 
+JackTripClient jtc{ip, peerAddress};
+
 // Audio circular buffers
 AudioPlayQueue pql;
 AudioPlayQueue pqr;
@@ -66,20 +69,35 @@ AudioMixer4 mixerL;
 AudioMixer4 mixerR;
 
 // Audio system connections
-// Play queue L (jacktrip in) routed to mixer L, granulator in L, and teensy out L.
-AudioConnection patchCord1(pql, 0, mixerL, 0);
-AudioConnection patchCord2(pql, 0, sg, 0);
-AudioConnection patchCord3(pql, 0, out, 0);
-// Play queue R (jacktrip in) routed to mixer R, granulator in R, and teensy out R.
-AudioConnection patchCord4(pqr, 0, mixerR, 0);
-AudioConnection patchCord5(pqr, 0, sg, 1);
-AudioConnection patchCord6(pqr, 0, out, 1);
+//// Play queue L (jacktrip in) routed to mixer L, granulator in L, and teensy out L.
+//AudioConnection patchCord1(pql, 0, mixerL, 0);
+//AudioConnection patchCord2(pql, 0, sg, 0);
+//AudioConnection patchCord3(pql, 0, out, 0);
+//// Play queue R (jacktrip in) routed to mixer R, granulator in R, and teensy out R.
+//AudioConnection patchCord4(pqr, 0, mixerR, 0);
+//AudioConnection patchCord5(pqr, 0, sg, 1);
+//AudioConnection patchCord6(pqr, 0, out, 1);
+//// Granulator outs routed to mixers
+//AudioConnection patchCord7(sg, 0, mixerL, 1);
+//AudioConnection patchCord8(sg, 1, mixerR, 1);
+//// Mixer outs routed to record queues (jacktrip out).
+//AudioConnection patchCord9(mixerL, rql);
+//AudioConnection patchCord10(mixerR, rqr);
+
+// JackTripClient output 1 (jacktrip in) routed to mixer L, granulator in L, and teensy out L.
+AudioConnection patchCord11(jtc, 0, mixerL, 0);
+AudioConnection patchCord12(jtc, 0, sg, 0);
+AudioConnection patchCord13(jtc, 0, out, 0);
+// JackTripClient output 2 (jacktrip in) routed to mixer R, granulator in R, and teensy out R.
+AudioConnection patchCord14(jtc, 1, mixerR, 0);
+AudioConnection patchCord15(jtc, 1, sg, 1);
+AudioConnection patchCord16(jtc, 1, out, 1);
 // Granulator outs routed to mixers
-AudioConnection patchCord7(sg, 0, mixerL, 1);
-AudioConnection patchCord8(sg, 1, mixerR, 1);
-// Mixer outs routed to record queues (jacktrip out).
-AudioConnection patchCord9(mixerL, rql);
-AudioConnection patchCord10(mixerR, rqr);
+AudioConnection patchCord17(sg, 0, mixerL, 1);
+AudioConnection patchCord18(sg, 1, mixerR, 1);
+// Mixer outs routed to JackTripClient inputs (jacktrip out).
+AudioConnection patchCord19(mixerL, 0, jtc, 0);
+AudioConnection patchCord20(mixerR, 0, jtc, 1);
 //endregion
 
 // Shorthand to block and do nothing
@@ -130,16 +148,21 @@ void setup() {
     while (!Serial);
 #endif
 
-    auto status = startEthernet();
-    if (status != LinkON) {
+    if (!jtc.begin(LOCAL_UDP_PORT)) {
+        Serial.println("Failed to initialise jacktrip client.");
         WAIT_INFINITE()
     }
 
-    Serial.print("My ip is ");
-    Ethernet.localIP().printTo(Serial);
-    Serial.println();
-
-    Serial.printf("Packet size is %d bytes\n", BUFFER_SIZE);
+//    auto status = startEthernet();
+//    if (status != LinkON) {
+//        WAIT_INFINITE()
+//    }
+//
+//    Serial.print("My ip is ");
+//    Ethernet.localIP().printTo(Serial);
+//    Serial.println();
+//
+//    Serial.printf("Packet size is %d bytes\n", BUFFER_SIZE);
 
     // Init ntp client
     // audio packets timestamps don't seem to be necessary
@@ -172,7 +195,22 @@ void loop() {
     // TODO read osc parameters
     // TODO filter audio before transmitting
 
-    if (connected) {
+    if (jtc.isConnected()) {
+        if (millis() - last_perf_report > PERF_REPORT_DELAY) {
+            Serial.printf("Audio memory in use: %d blocks; processor %f %%\n",
+                          AudioMemoryUsage(),
+                          AudioProcessorUsage());
+            last_perf_report = millis();
+        }
+    } else {
+        jtc.connect(2500);
+        if (jtc.isConnected()) {
+            startAudio();
+        }
+    }
+
+
+    if (false) {
         // Send audio when there are enough samples to fill a packet
         while (rql.available() >= NUM_BUFFERS &&
                (NUM_CHANNELS == 1 || (NUM_CHANNELS > 1 && rqr.available() >= NUM_BUFFERS))) {
@@ -223,7 +261,7 @@ void loop() {
                 Serial.println("Received exit packet");
                 Serial.println("Perf statistics");
                 Serial.printf("  maxmem: %d blocks\n", AudioMemoryUsageMax());
-                Serial.printf("  maxcpu: %f %%\n", AudioProcessorUsageMax() * 100);
+                Serial.printf("  maxcpu: %f %%\n", AudioProcessorUsageMax());
 
                 closeJacktripConnection();
                 stopAudio();
@@ -261,10 +299,10 @@ void loop() {
             last_perf_report = millis();
         }
     } else {
-        attemptJacktripConnection(2500);
-        if (connected) {
-            startAudio();
-        }
+//        attemptJacktripConnection(2500);
+//        if (connected) {
+//            startAudio();
+//        }
     }
 }
 
@@ -277,7 +315,7 @@ EthernetLinkStatus startEthernet() {
 #ifdef CONF_DHCP
     bool dhcpFailed = false;
     // start the Ethernet
-    if (!Ethernet.begin(mac)) {
+    if (!Ethernet.begin(clientMAC)) {
         dhcpFailed = true;
     }
 #endif
