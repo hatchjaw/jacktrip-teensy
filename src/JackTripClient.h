@@ -2,13 +2,13 @@
 // Created by Tommy Rushton on 16/09/22.
 //
 
-
 #ifndef JACKTRIP_TEENSY_JACKTRIPCLIENT_H
 #define JACKTRIP_TEENSY_JACKTRIPCLIENT_H
 
 #include <Audio.h>
 #include <NativeEthernet.h>
-//#include <PacketHeader.h> // Might be nice to include this from jacktrip rather than redefining it here...
+#include "PacketHeader.h"
+//#include <PacketHeader.h> // Might be nice to include this from jacktrip
 
 #define CONF_MANUAL
 
@@ -39,42 +39,13 @@ public:
     void stop() override;
 
 private:
-    struct JacktripPacketHeader {
-        uint64_t TimeStamp;    ///< Time Stamp
-        uint16_t SeqNumber;    ///< Sequence Number
-        uint16_t BufferSize;   ///< Buffer Size in Samples
-        uint8_t SamplingRate;  ///< Sampling Rate in JackAudioInterface::samplingRateT
-        uint8_t BitResolution; ///< Audio Bit Resolution
-        uint8_t NumIncomingChannelsFromNet; ///< Number of incoming Channels from the network
-        uint8_t NumOutgoingChannelsToNet; ///< Number of outgoing Channels to the network
-    };
-
-#define PACKET_HEADER_SIZE sizeof(JacktripPacketHeader)
-
-    enum audioBitResolutionT
-    {
-        BIT8 = 1,  ///< 8 bits
-        BIT16 = 2, ///< 16 bits (default)
-        BIT24 = 3, ///< 24 bits
-        BIT32 = 4  ///< 32 bits
-    };
-
-    enum samplingRateT
-    {
-        SR22,  ///<  22050 Hz
-        SR32,  ///<  32000 Hz
-        SR44,  ///<  44100 Hz
-        SR48,  ///<  48000 Hz
-        SR88,  ///<  88200 Hz
-        SR96,  ///<  96000 Hz
-        SR192, ///< 192000 Hz
-        UNDEF  ///< Undefined
-    };
-
     static const uint8_t NUM_CHANNELS{2};
-    // Can't use 2 channels and 512 samples due to a bug in the udp
-    // implementation (can't send packets bigger than 2048)
-    // TODO: check this, and ideally derive it from the JackTrip server.
+    // "Can't use 2 channels and 512 samples due to a bug in the udp
+    // implementation (can't send packets bigger than 2048)"
+    // TODO: check the above, and ideally derive the below from the JackTrip server.
+    // Using 128 because Teensy's AudioStream::update() is called every 128
+    // samples. Stored as a 16-bit value to match the type expected by
+    // JackTripPacketHeader
     static const uint16_t NUM_SAMPLES{128};
     static const uint32_t UDP_BUFFER_SIZE{PACKET_HEADER_SIZE + NUM_CHANNELS * NUM_SAMPLES * 2};
 
@@ -83,7 +54,7 @@ private:
      */
     const uint16_t REMOTE_TCP_PORT{4464};
     /**
-     * Size, in bits, of JackTrip's exit packet
+     * Size, in bytes, of JackTrip's exit packet
      */
     const uint8_t EXIT_PACKET_SIZE{63};
 
@@ -103,6 +74,8 @@ private:
     /**
      * Receive a JackTrip packet containing audio to route to this object's
      * outputs.
+     * NB assumes that a new packet is ready each time it is called. This may
+     * well be a dangerous assumption.
      */
     void receivePacket();
 
@@ -139,7 +112,7 @@ private:
 
     bool connected{false};
 
-    uint32_t lastReceive{millis()};
+    uint32_t lastReceive{0};
     /**
      * UDP packet buffer (in/out)
      */
@@ -156,7 +129,7 @@ private:
      * The header to send with every outgoing JackTrip packet.
      * TimeStamp and SeqNumber should be incremented accordingly.
      */
-    JacktripPacketHeader packetHeader{
+    JackTripPacketHeader packetHeader{
             0,
             0,
             NUM_SAMPLES,

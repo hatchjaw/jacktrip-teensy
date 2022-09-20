@@ -15,8 +15,7 @@ uint8_t JackTripClient::begin(uint16_t port) {
     }
 
     Serial.print("JackTripClient: IP is ");
-    Ethernet.localIP().printTo(Serial);
-    Serial.println();
+    Serial.println(Ethernet.localIP());
 
     Serial.printf("JackTripClient: Packet size is %d bytes\n", UDP_BUFFER_SIZE);
 
@@ -61,7 +60,7 @@ if (!Ethernet.begin(clientMAC)) {
 bool JackTripClient::connect(uint16_t timeout) {
     // Attempt handshake with JackTrip server via TCP port.
     Serial.print("JackTripClient: Connecting to JackTrip server at ");
-    serverIP.printTo(Serial);
+    Serial.print(serverIP);
     Serial.printf(":%d... ", REMOTE_TCP_PORT);
 
     EthernetClient c = EthernetClient();
@@ -84,6 +83,8 @@ bool JackTripClient::connect(uint16_t timeout) {
     serverUdpPort = port;
     Serial.printf("JackTripClient: Server port is %d\n", serverUdpPort);
 
+    lastReceive = millis();
+
     // TODO: better connection success check
     return connected;// && 1 == udp.begin(LOCAL_UDP_PORT);
 }
@@ -104,59 +105,6 @@ bool JackTripClient::isConnected() const {
     return connected;
 }
 
-void JackTripClient::receivePacket() {
-    int size;
-    // Nonblocking
-    if ((size = parsePacket())) {
-        lastReceive = millis();
-
-        if (size == EXIT_PACKET_SIZE && isExitPacket()) {
-            // Exit sequence
-            Serial.println("JackTripClient: Received exit packet");
-
-            stop();
-        } else if (size != UDP_BUFFER_SIZE) {
-            Serial.println("JackTripClient: Received a malformed packet");
-        } else {
-//            Serial.println("JackTripClient: Received audio packet");
-            this->read(buffer, UDP_BUFFER_SIZE);
-
-            // Size in memory of one channel's worth of samples.
-            auto channelFrameSize = NUM_SAMPLES * sizeof(uint16_t);
-
-            // Write samples to output.
-            audio_block_t *outBlock[NUM_CHANNELS];
-            for (int channel = 0; channel < NUM_CHANNELS; channel++) {
-                outBlock[channel] = allocate();
-                // Get the start of the sample data for the current channel.
-                auto start = (const int16_t *) (buffer + PACKET_HEADER_SIZE + channelFrameSize * channel);
-                // Copy the samples to the appropriate channel of the output block.
-                memcpy(outBlock[channel]->data, start, channelFrameSize);
-                // Finish up.
-                transmit(outBlock[channel], channel);
-                release(outBlock[channel]);
-            }
-        }
-    }
-
-    if (millis() - lastReceive > 1000) {
-        Serial.println("JackTripClient: Nothing received for 1 second");
-        lastReceive = millis();
-    }
-}
-
-bool JackTripClient::isExitPacket() {
-    if (this->read(buffer, EXIT_PACKET_SIZE) == EXIT_PACKET_SIZE) {
-        for (size_t i = 0; i < EXIT_PACKET_SIZE; ++i) {
-            if (buffer[i] != 0xff) {
-                return false;
-            }
-        }
-        return true;
-    }
-    return false;
-}
-
 void JackTripClient::sendPacket() {
     // Copy the packet header to the UDP buffer.
     memcpy(buffer, &packetHeader, PACKET_HEADER_SIZE);
@@ -168,19 +116,95 @@ void JackTripClient::sendPacket() {
     audio_block_t *inBlock[NUM_CHANNELS];
     for (int channel = 0; channel < NUM_CHANNELS; channel++) {
         inBlock[channel] = receiveReadOnly(channel);
-        memcpy(pos, inBlock[channel]->data, channelFrameSize);
-        pos += channelFrameSize;
-        release(inBlock[channel]);
+        // Only proceed if a block was returned, i.e. something is connected
+        // to one of this object's input channels.
+        if (inBlock[channel]) {
+            memcpy(pos, inBlock[channel]->data, channelFrameSize);
+            pos += channelFrameSize;
+            release(inBlock[channel]);
+        }
     }
 
     // Send the packet.
-    this->beginPacket(serverIP, serverUdpPort);
-    size_t written = this->write(buffer, UDP_BUFFER_SIZE);
+    beginPacket(serverIP, serverUdpPort);
+    size_t written = write(buffer, UDP_BUFFER_SIZE);
     if (written != UDP_BUFFER_SIZE) {
         Serial.println("JackTripClient: Net buffer is too small");
     }
-    this->endPacket();
+    endPacket();
 
-    packetHeader.TimeStamp += 1;
-    packetHeader.SeqNumber += 1;
+//    packetHeader.TimeStamp++; // This isn't necessary.
+    packetHeader.SeqNumber++;
+}
+
+void JackTripClient::receivePacket() {
+    int size;
+
+    // parsePacket() does the read, essentially. Afterwards there's no data
+    // remaining... but (as I think is the case) if the server is sending
+    // packets slightly faster than Teensy handles them, then things get out of
+    // sync. I think the way Teensy does its UDP read, with
+    // fnet_socket_recvfrom(), may be a problem.
+    // TODO: override parsePacket()?
+    if ((size = parsePacket())) {
+        lastReceive = millis();
+
+        if (size == EXIT_PACKET_SIZE && isExitPacket()) {
+            // Exit sequence
+            Serial.println("JackTripClient: Received exit packet");
+
+            stop();
+        } else if (size != UDP_BUFFER_SIZE) {
+            Serial.println("JackTripClient: Received a malformed packet");
+        } else {
+            // Read the UDP packet into the buffer.
+            read(buffer, UDP_BUFFER_SIZE);
+
+            // Size in memory of one channel's worth of samples.
+            auto channelFrameSize = NUM_SAMPLES * sizeof(uint16_t);
+
+//            auto *header = new JackTripPacketHeader;
+//            memcpy(header, buffer, PACKET_HEADER_SIZE);
+////            if (header->SeqNumber - prevHeader.SeqNumber != 1) {
+//                Serial.println(header->SeqNumber);
+//                Serial.println(header->TimeStamp);
+////            }
+////            prevHeader.SeqNumber = header->SeqNumber;
+////            prevHeader.TimeStamp = header->TimeStamp;
+
+            // Write samples to output.
+            audio_block_t *outBlock[NUM_CHANNELS];
+            for (int channel = 0; channel < NUM_CHANNELS; channel++) {
+                outBlock[channel] = allocate();
+                // Only proceed if an audio block was allocated, i.e. the
+                // current output channel is connected to something.
+                if (outBlock[channel]) {
+                    // Get the start of the sample data for the current channel.
+                    auto start = (const int16_t *) (buffer + PACKET_HEADER_SIZE + channelFrameSize * channel);
+                    // Copy the samples to the appropriate channel of the output block.
+                    memcpy(outBlock[channel]->data, start, channelFrameSize);
+                    // Finish up.
+                    transmit(outBlock[channel], channel);
+                    release(outBlock[channel]);
+                }
+            }
+        }
+    }
+
+    if (millis() - lastReceive > 1000) {
+        Serial.println("JackTripClient: Nothing received for 1 second");
+        lastReceive = millis();
+    }
+}
+
+bool JackTripClient::isExitPacket() {
+    if (read(buffer, EXIT_PACKET_SIZE) == EXIT_PACKET_SIZE) {
+        for (size_t i = 0; i < EXIT_PACKET_SIZE; ++i) {
+            if (buffer[i] != 0xff) {
+                return false;
+            }
+        }
+        return true;
+    }
+    return false;
 }

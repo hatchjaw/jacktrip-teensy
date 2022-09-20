@@ -21,7 +21,7 @@ enum samplingRateT
     UNDEF  ///< Undefined
 };
 
-struct JacktripPacketHeader
+struct JackTripPacketHeader
 {
 public:
     uint64_t TimeStamp;    ///< Time Stamp
@@ -33,6 +33,6 @@ public:
     uint8_t NumOutgoingChannelsToNet; ///< Number of outgoing Channels to the network
 };
 
-#define PACKET_HEADER_SIZE sizeof(JacktripPacketHeader)
+#define PACKET_HEADER_SIZE sizeof(JackTripPacketHeader)
 
 #endif //JACKTRIP_TEENSY_PACKETHEADER_H

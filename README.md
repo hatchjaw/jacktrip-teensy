@@ -68,7 +68,7 @@ attached, by an ethernet cable, to a computer running a jacktrip server.
 
 The wired connection on the machine running the jacktrip server should be
 set to manual IPv4 mode (i.e. DHCP disabled), with **subnet mask** 
-`255.255.255.0`, **address** matching `peerAddress` as specified in `main.cpp`, 
+`255.255.255.0`, **address** matching `serverIP` as specified in `main.cpp`, 
 and **gateway** `x.x.x.1` (where `x` are the first three octets of **address**).
 
 If in doubt, try:
@@ -90,7 +90,7 @@ doing so at the desired sample rate.
 
 After uploading to the Teensy (`pio run -t upload`), the program will wait 
 for a serial connection (if the `WAIT_FOR_SERIAL` define is set).
-Start a jacktrip server with `jacktrip -S -q 2` (maybe with `-p 2` also).
+Start a jacktrip server with `jacktrip -S -q 2`.
 Then you can open a serial connection to Teensy and the program will
 resume (`pio device monitor`).
 
@@ -98,7 +98,7 @@ Play some audio in an application — e.g. Audacity — for which it is possible
 select jack as the output device. Then use QJackCtl or Cadence (Catia) to route
 audio from that application to the client, i.e. Teensy.
 In Audacity specifically, select JACK Audio Connection Kit as the host, and
-`__ffff_[ip of teensy]` as the output device.
+`__ffff_[clientIP]` as the output device.
 
 Plug some
 headphones into Teensy and hear the audio that's being delivered from the
@@ -113,18 +113,12 @@ computer and hear audio that's being sent from Teensy to the server.
 - TCP connection to exchange UDP ports between client and server
 - Client starts to send UDP packets, the server uses the header to initialize jack parameters
 
-[//]: # (- When at least a second client is connected, the server starts broadcasting the mixed audio to everyone.)
-
 ## TODO
 
-- Transmit audio
-- Filter microphone audio
-- Autoconfiguration with OpenSoundControl
-- Restart strategy after receiving an exit packet (currently need a program reset)
-
-## NEXT
-- Look at structure of a faust2teensy object
-- Add a faust2teensy object to the sketch
-- Inherit from AudioStream
-    - call UDP::read() within AudioStream::update()
-    - somehow sync UDP and AudioStream
+- Fix clock drift
+- Update readme
+- Conform to Teensy naming conventions?
+- Autoconfiguration with OSC
+- Arbitrary audio buffer size, number of channels, bit-depth.
+  - Currently assumes that Jack is running with a buffer size of 128 (connection will fail 
+    otherwise).

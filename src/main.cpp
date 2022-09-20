@@ -1,17 +1,19 @@
 #include <NativeEthernet.h>
 #include "PacketHeader.h"
 #include <Audio.h>
-#include <OSCBundle.h>
 #include "faust/SpringGrain/SpringGrain.h"
 #include "JackTripClient.h"
+
+// Set this to wait for a serial connection before proceeding with the execution
+#define WAIT_FOR_SERIAL
 
 //region Network parameters
 // This MAC address is arbitrarily assigned to the ethernet shield.
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xE0};
-// For manual ip address configuration -- IP to assign to the ethernet shield.
-IPAddress ip{192, 168, 1, 20};
-// Remote server ip address -- should match address in IPv4 settings.
-IPAddress peerAddress{192, 168, 1, 66};
+// For manual clientIP address configuration -- IP to assign to the ethernet shield.
+IPAddress clientIP{192, 168, 1, 20};
+// Remote server clientIP address -- should match address in IPv4 settings.
+IPAddress serverIP{192, 168, 1, 66};
 // A flag to indicate whether Teensy is connected to the jacktrip server.
 bool connected{false};
 // Remote server tcp port
@@ -19,14 +21,10 @@ const uint16_t REMOTE_TCP_PORT = 4464;
 // Local udp port to receive packets on
 const uint16_t LOCAL_UDP_PORT = 8888;
 
-// Set this to use the ip address from the dhcp
+// Set this to use the clientIP address from the dhcp
 // #define CONF_DHCP
-// Set this to manually configure the ip address
+// Set this to manually configure the clientIP address
 #define CONF_MANUAL
-
-// Set this to wait for a serial connection before proceeding with the execution
-#define WAIT_FOR_SERIAL
-
 //endregion
 
 //region Audio parameters
@@ -56,7 +54,7 @@ uint16_t remote_udp_port;
 AudioControlSGTL5000 audioShield;
 AudioOutputI2S out;
 
-JackTripClient jtc{ip, peerAddress};
+JackTripClient jtc{clientIP, serverIP};
 
 // Audio circular buffers
 AudioPlayQueue pql;
@@ -111,7 +109,7 @@ const uint32_t EXIT_PACKET_SIZE = 63;
 uint8_t buffer[BUFFER_SIZE];
 
 uint16_t seq = 0;
-JacktripPacketHeader HEADER = JacktripPacketHeader{
+JackTripPacketHeader HEADER = JackTripPacketHeader{
         0,
         0,
         NUM_SAMPLES,
@@ -141,9 +139,6 @@ void startAudio();
 //endregion
 
 void setup() {
-    // Open serial communications
-    Serial.begin(0);
-
 #ifdef WAIT_FOR_SERIAL
     while (!Serial);
 #endif
@@ -158,7 +153,7 @@ void setup() {
 //        WAIT_INFINITE()
 //    }
 //
-//    Serial.print("My ip is ");
+//    Serial.print("My clientIP is ");
 //    Ethernet.localIP().printTo(Serial);
 //    Serial.println();
 //
@@ -179,9 +174,11 @@ void setup() {
 
     // + 10 for the audio input
     AudioMemory(NUM_BUFFERS * NUM_CHANNELS + 2 + 20);
-    pql.setMaxBuffers(NUM_BUFFERS);
-    pqr.setMaxBuffers(NUM_BUFFERS);
-    Serial.printf("Allocated %d buffers\n", NUM_BUFFERS * NUM_CHANNELS + 2 + 20);
+//    AudioMemory(32);
+
+//    pql.setMaxBuffers(NUM_BUFFERS);
+//    pqr.setMaxBuffers(NUM_BUFFERS);
+//    Serial.printf("Allocated %d buffers\n", NUM_BUFFERS * NUM_CHANNELS + 2 + 20);
 
     // Granular engine parameters
     sg.setParamValue(GRAIN_SPEED, -.85);
@@ -234,7 +231,7 @@ void loop() {
                 }
             }
 
-            Udp.beginPacket(peerAddress, remote_udp_port);
+            Udp.beginPacket(serverIP, remote_udp_port);
             size_t written = Udp.write(buffer, BUFFER_SIZE);
             if (written != BUFFER_SIZE) {
                 Serial.println("Net buffer is too small");
@@ -321,7 +318,7 @@ EthernetLinkStatus startEthernet() {
 #endif
 
 #ifdef CONF_MANUAL
-    Ethernet.begin(mac, ip);
+    Ethernet.begin(mac, clientIP);
 #endif
 
     if (Ethernet.linkStatus() != LinkON) {
@@ -367,12 +364,12 @@ void stopAudio() {
 void attemptJacktripConnection(uint16_t timeout) {
     // Query jacktrip udp port
     Serial.print("Attempting to connect to jacktrip server at ");
-    peerAddress.printTo(Serial);
+    serverIP.printTo(Serial);
     Serial.printf(":%d... ", REMOTE_TCP_PORT);
 
     EthernetClient c = EthernetClient();
     c.setConnectionTimeout(timeout);
-    if (c.connect(peerAddress, REMOTE_TCP_PORT)) {
+    if (c.connect(serverIP, REMOTE_TCP_PORT)) {
         Serial.println("Succeeded!");
         connected = true;
     } else {

@@ -4,7 +4,7 @@ import("stdfaust.lib");
 
 NUMGRAINS = 10;
 MAXGRAINDURATION = .75;
-TSIZE = 44100;
+TSIZE = 50000;
 
 grainStart = hslider("Grain start", 754, 0, TSIZE, 1 );
 grainSize = hslider("Grain length (s)", .001, .001, MAXGRAINDURATION, .001);
