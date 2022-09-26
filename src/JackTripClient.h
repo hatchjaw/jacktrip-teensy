@@ -15,7 +15,7 @@
 /**
  * Inputs: signals produced by other audio components, to be sent to peers over
  *   the JackTrip protocol to do with as they will.
- * Outputs: audio signals received over the JackTrip protocol,
+ * Outputs: audio signals received over the JackTrip protocol.
  */
 class JackTripClient : public AudioStream, EthernetUDP {
 public:
@@ -39,15 +39,8 @@ public:
     void stop() override;
 
 private:
-    static const uint8_t NUM_CHANNELS{2};
-    // "Can't use 2 channels and 512 samples due to a bug in the udp
-    // implementation (can't send packets bigger than 2048)"
-    // TODO: check the above, and ideally derive the below from the JackTrip server.
-    // Using 128 because Teensy's AudioStream::update() is called every 128
-    // samples. Stored as a 16-bit value to match the type expected by
-    // JackTripPacketHeader
-    static const uint16_t NUM_SAMPLES{128};
-    static const uint32_t UDP_BUFFER_SIZE{PACKET_HEADER_SIZE + NUM_CHANNELS * NUM_SAMPLES * 2};
+    static constexpr uint8_t NUM_CHANNELS{2};
+    static const uint32_t UDP_BUFFER_SIZE{PACKET_HEADER_SIZE + NUM_CHANNELS * AUDIO_BLOCK_SAMPLES * 2};
 
     /**
      * Remote server tcp port for initial handshake.
@@ -113,6 +106,7 @@ private:
     bool connected{false};
 
     uint32_t lastReceive{0};
+
     /**
      * UDP packet buffer (in/out)
      */
@@ -132,7 +126,9 @@ private:
     JackTripPacketHeader packetHeader{
             0,
             0,
-            NUM_SAMPLES,
+            // Teensy's default block size is 128. May be overwritten by
+            // compiler flag -DAUDIO_BLOCK_SAMPLES (see platformio.ini).
+            AUDIO_BLOCK_SAMPLES,
             samplingRateT::SR44,
             16,
             NUM_CHANNELS,

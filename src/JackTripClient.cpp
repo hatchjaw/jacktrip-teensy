@@ -10,6 +10,11 @@ JackTripClient::JackTripClient(IPAddress &clientIpAddress, IPAddress &serverIpAd
         serverIP(serverIpAddress) {}
 
 uint8_t JackTripClient::begin(uint16_t port) {
+    if (!active) {
+        Serial.println("JackTripClient is not connected to any Teensy audio objects.");
+        return 0;
+    }
+
     if (LinkON != startEthernet()) {
         return 0;
     }
@@ -31,13 +36,11 @@ EthernetLinkStatus JackTripClient::startEthernet() {
 
 #ifdef CONF_DHCP
     bool dhcpFailed = false;
-// start the Ethernet
-if (!Ethernet.begin(clientMAC)) {
-    dhcpFailed = true;
-}
-#endif
-
-#ifdef CONF_MANUAL
+    // Start ethernet
+    if (!Ethernet.begin(clientMAC)) {
+        dhcpFailed = true;
+    }
+#else
     Ethernet.begin(clientMAC, clientIP);
 #endif
 
@@ -49,15 +52,20 @@ if (!Ethernet.begin(clientMAC)) {
 
 #ifdef CONF_DHCP
     if (dhcpFailed) {
-    Serial.println("DHCP conf failed");
-    WAIT_INFINITE();
-}
+        Serial.println("DHCP conf failed");
+        return Unknown;
+    }
 #endif
 
     return Ethernet.linkStatus();
 }
 
 bool JackTripClient::connect(uint16_t timeout) {
+    if (!active) {
+        Serial.println("JackTripClient is not connected to any Teensy audio objects.");
+        return false;
+    }
+
     // Attempt handshake with JackTrip server via TCP port.
     Serial.print("JackTripClient: Connecting to JackTrip server at ");
     Serial.print(serverIP);
@@ -141,10 +149,7 @@ void JackTripClient::receivePacket() {
     int size;
 
     // parsePacket() does the read, essentially. Afterwards there's no data
-    // remaining... but (as I think is the case) if the server is sending
-    // packets slightly faster than Teensy handles them, then things get out of
-    // sync. I think the way Teensy does its UDP read, with
-    // fnet_socket_recvfrom(), may be a problem.
+    // remaining in the UDP stream.
     // TODO: override parsePacket()?
     if ((size = parsePacket())) {
         lastReceive = millis();
@@ -152,6 +157,8 @@ void JackTripClient::receivePacket() {
         if (size == EXIT_PACKET_SIZE && isExitPacket()) {
             // Exit sequence
             Serial.println("JackTripClient: Received exit packet");
+            Serial.printf("  maxmem: %d blocks\n", AudioMemoryUsageMax());
+            Serial.printf("  maxcpu: %f %%\n", AudioProcessorUsageMax());
 
             stop();
         } else if (size != UDP_BUFFER_SIZE) {
@@ -161,7 +168,7 @@ void JackTripClient::receivePacket() {
             read(buffer, UDP_BUFFER_SIZE);
 
             // Size in memory of one channel's worth of samples.
-            auto channelFrameSize = NUM_SAMPLES * sizeof(uint16_t);
+            auto channelFrameSize = AUDIO_BLOCK_SAMPLES * sizeof(uint16_t);
 
 //            auto *header = new JackTripPacketHeader;
 //            memcpy(header, buffer, PACKET_HEADER_SIZE);
