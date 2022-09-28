@@ -1,5 +1,5 @@
-#ifndef PIR_AUDIO_PACKETHEADER_H
-#define PIR_AUDIO_PACKETHEADER_H
+#ifndef JACKTRIP_TEENSY_PACKETHEADER_H
+#define JACKTRIP_TEENSY_PACKETHEADER_H
 
 enum audioBitResolutionT
 {
@@ -21,7 +21,7 @@ enum samplingRateT
     UNDEF  ///< Undefined
 };
 
-struct JacktripPacketHeader
+struct JackTripPacketHeader
 {
 public:
     uint64_t TimeStamp;    ///< Time Stamp
@@ -29,12 +29,10 @@ public:
     uint16_t BufferSize;   ///< Buffer Size in Samples
     uint8_t SamplingRate;  ///< Sampling Rate in JackAudioInterface::samplingRateT
     uint8_t BitResolution; ///< Audio Bit Resolution
-    uint8_t NumIncomingChannelsFromNet; ///< Number of incoming Channels from the
-    ///< network
-    uint8_t
-            NumOutgoingChannelsToNet; ///< Number of outgoing Channels to the network
+    uint8_t NumIncomingChannelsFromNet; ///< Number of incoming Channels from the network
+    uint8_t NumOutgoingChannelsToNet; ///< Number of outgoing Channels to the network
 };
 
-#define PACKET_HEADER_SIZE sizeof(JacktripPacketHeader)
+#define PACKET_HEADER_SIZE sizeof(JackTripPacketHeader)
 
-#endif //PIR_AUDIO_PACKETHEADER_H
+#endif //JACKTRIP_TEENSY_PACKETHEADER_H
