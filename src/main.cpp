@@ -13,6 +13,9 @@
 // Define this to try to set clientIP via dhcp (otherwise configure manually)
 // #define CONF_DHCP
 
+#ifndef CLIENT_IP_LAST_BYTE
+#define CLIENT_IP_LAST_BYTE 0x10
+#endif
 
 #ifndef USE_JACKTRIPCLIENT
 // This MAC address is arbitrarily assigned to the ethernet shield.
@@ -46,12 +49,12 @@ JackTripPacketHeader HEADER = JackTripPacketHeader{
         NUM_CHANNELS};
 #endif
 
-// For manual clientIP address configuration -- IP to assign to the ethernet shield.
-IPAddress clientIP{192, 168, 1, 20};
-// Remote server clientIP address -- should match address in IPv4 settings.
-IPAddress serverIP{192, 168, 1, 66};
 // Local udp port on which to receive packets.
 const uint16_t LOCAL_UDP_PORT = 8888;
+// For manual clientIP address configuration -- IP to assign to the ethernet shield.
+IPAddress clientIP{192, 168, 1, CLIENT_IP_LAST_BYTE};
+// Remote server clientIP address -- should match address in IPv4 settings.
+IPAddress serverIP{192, 168, 1, 66};
 
 //region Faust parameter names
 const std::string GRAIN_SIZE = "Grain length (s)";

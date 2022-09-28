@@ -5,12 +5,14 @@
 #ifndef JACKTRIP_TEENSY_JACKTRIPCLIENT_H
 #define JACKTRIP_TEENSY_JACKTRIPCLIENT_H
 
+#ifndef ETHERNET_MAC_LAST_BYTE
+#define ETHERNET_MAC_LAST_BYTE 0x00
+#endif
+
 #include <Audio.h>
 #include <NativeEthernet.h>
 #include "PacketHeader.h"
 //#include <PacketHeader.h> // Might be nice to include this from jacktrip
-
-#define CONF_MANUAL
 
 /**
  * Inputs: signals produced by other audio components, to be sent to peers over
@@ -23,6 +25,7 @@ public:
 
     /**
      * Set up the client.
+     * @param port local UDP port on which to listen for packets.
      * @return <em>true</em> on success, <em>false</em> on failure.
      */
     uint8_t begin(uint16_t port) override;
@@ -41,6 +44,7 @@ public:
 private:
     static constexpr uint8_t NUM_CHANNELS{2};
     static const uint32_t UDP_BUFFER_SIZE{PACKET_HEADER_SIZE + NUM_CHANNELS * AUDIO_BLOCK_SAMPLES * 2};
+    static const uint32_t RECEIVE_TIMEOUT{2500};
 
     /**
      * Remote server tcp port for initial handshake.
@@ -86,9 +90,8 @@ private:
 
     /**
      * MAC address to assign to Teensy's ethernet shield.
-     * TODO: Might not work for multiple clients?..
      */
-    byte clientMAC[6]{0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xE0};
+    byte clientMAC[6]{0xDE, 0xAD, 0xBE, 0xEF, 0xFE, ETHERNET_MAC_LAST_BYTE};
     /**
      * IP to assign to Teensy.
      */

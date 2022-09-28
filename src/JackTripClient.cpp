@@ -41,6 +41,11 @@ EthernetLinkStatus JackTripClient::startEthernet() {
         dhcpFailed = true;
     }
 #else
+    Serial.print("JackTripClient: MAC address is: ");
+    for (int i = 0; i < 6; ++i) {
+        Serial.printf(i < 5 ? "%X:" : "%X", clientMAC[i]);
+    }
+    Serial.println();
     Ethernet.begin(clientMAC, clientIP);
 #endif
 
@@ -81,20 +86,31 @@ bool JackTripClient::connect(uint16_t timeout) {
         return false;
     }
 
-    // TODO: check value/type of port
+    // Apparently just sending the local UDP port yields the remote UDP port
+    // in return...
     auto port = localPort();
-    // port is sent little endian
-    c.write((const uint8_t *) &port, 4);
-
+    // Send the local port (little endian).
+    if (4 != c.write((const uint8_t *) &port, 4)) {
+        Serial.println("JackTripClient: failed to send UDP port to server.");
+        c.close();
+        connected = false;
+        return false;
+    }
+    // Patience...
     while (c.available() < 4) {}
-    c.read((uint8_t *) &port, 4);
+    // Read the remote port.
+    if (4 != c.read((uint8_t *) &port, 4)) {
+        Serial.println("JackTripClient: failed to read UDP port from server.");
+        c.close();
+        connected = false;
+        return false;
+    }
+
     serverUdpPort = port;
     Serial.printf("JackTripClient: Server port is %d\n", serverUdpPort);
 
     lastReceive = millis();
-
-    // TODO: better connection success check
-    return connected;// && 1 == udp.begin(LOCAL_UDP_PORT);
+    return connected;
 }
 
 void JackTripClient::stop() {
@@ -149,7 +165,7 @@ void JackTripClient::receivePacket() {
     int size;
 
     // parsePacket() does the read, essentially. Afterwards there's no data
-    // remaining in the UDP stream.
+    // remaining in the UDP stream. But how does this work so smoothly?...
     // TODO: override parsePacket()?
     if ((size = parsePacket())) {
         lastReceive = millis();
@@ -198,8 +214,15 @@ void JackTripClient::receivePacket() {
         }
     }
 
-    if (millis() - lastReceive > 1000) {
-        Serial.println("JackTripClient: Nothing received for 1 second");
+//    if (millis() - lastReceive > RECEIVE_TIMEOUT) {
+//        Serial.printf("JackTripClient: Nothing received for %.1f s\n", RECEIVE_TIMEOUT / 1000.f);
+//        Serial.printf("JackTripClient: (Is JACK definitely running on the server?)\n");
+//        stop();
+//        lastReceive = millis();
+//    }
+
+    if (millis() - lastReceive > RECEIVE_TIMEOUT) {
+        Serial.printf("JackTripClient: Nothing received for %.1f s\n", RECEIVE_TIMEOUT / 1000.f);
         lastReceive = millis();
     }
 }
