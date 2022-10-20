@@ -7,7 +7,12 @@
 JackTripClient::JackTripClient(IPAddress &clientIpAddress, IPAddress &serverIpAddress) :
         AudioStream(2, inputQueueArray),
         clientIP(clientIpAddress),
-        serverIP(serverIpAddress) {}
+        serverIP(serverIpAddress){
+    // Generate a MAC address (from the program-once area of Teensy's flash
+    // memory) to assign to the ethernet shield.
+    teensyMAC(clientMAC);
+    clientIP[3] += clientMAC[5];
+}
 
 uint8_t JackTripClient::begin(uint16_t port) {
     if (!active) {
@@ -16,6 +21,7 @@ uint8_t JackTripClient::begin(uint16_t port) {
     }
 
     if (LinkON != startEthernet()) {
+        Serial.println("JackTripClient: failed to start ethernet connection.");
         return 0;
     }
 
@@ -34,6 +40,12 @@ EthernetLinkStatus JackTripClient::startEthernet() {
         Ethernet.setSocketSize(UDP_BUFFER_SIZE);
     }
 
+    Serial.print("JackTripClient: MAC address is: ");
+    for (int i = 0; i < 6; ++i) {
+        Serial.printf(i < 5 ? "%02X:" : "%02X", clientMAC[i]);
+    }
+    Serial.println();
+
 #ifdef CONF_DHCP
     bool dhcpFailed = false;
     // Start ethernet
@@ -41,11 +53,6 @@ EthernetLinkStatus JackTripClient::startEthernet() {
         dhcpFailed = true;
     }
 #else
-    Serial.print("JackTripClient: MAC address is: ");
-    for (int i = 0; i < 6; ++i) {
-        Serial.printf(i < 5 ? "%X:" : "%X", clientMAC[i]);
-    }
-    Serial.println();
     Ethernet.begin(clientMAC, clientIP);
 #endif
 
@@ -57,7 +64,7 @@ EthernetLinkStatus JackTripClient::startEthernet() {
 
 #ifdef CONF_DHCP
     if (dhcpFailed) {
-        Serial.println("DHCP conf failed");
+        Serial.println("JackTripClient: DHCP configuration failed");
         return Unknown;
     }
 #endif

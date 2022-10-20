@@ -2,7 +2,7 @@
 
 ## Building
 
-The project is built with [Platformio](https://platformio.org). 
+This project is built with [PlatformIO](https://platformio.org). 
 Supported hardware: Teensy 4.1; a host machine running Ubuntu 20.04.
 
 ```shell
@@ -14,6 +14,10 @@ pio run -e client[N]
 where `N` is the client number. See [platformio.ini](platformio.ini).
 
 ## Setup
+
+There's a friendly, high-level
+[guide](https://ccrma.stanford.edu/docs/common/IETF.html) 
+to Jack and JackTrip on the CCRMA website.
 
 ### JackTrip
 
@@ -65,7 +69,7 @@ targets = upload
 
 The various `client` working environments assist with assigning distinct MAC
 address and IP to Teens(y|ies). PlatformIO also defines `AUDIO_BLOCK_SAMPLES`
-which sets Teensy's audio block size.
+which sets Teensy's audio block size. 
 
 ### Hardware
 
@@ -113,7 +117,8 @@ Plug some
 headphones into Teensy and hear the audio that's being delivered from the
 server over UDP. 
 Route audio from the client to system playback; plug some headphones into your 
-computer and hear audio that's being sent from Teensy to the server.
+computer/audio interface and hear audio that's being sent from Teensy to the 
+server.
 
 ## Notes
 
@@ -122,12 +127,44 @@ computer and hear audio that's being sent from Teensy to the server.
 - TCP connection to exchange UDP ports between client and server
 - Client starts to send UDP packets, the server uses the header to initialize jack parameters
 
+### Alsa
+
+To force Alsa to restart:
+
+```shell
+name@comp:~$ lsof | grep pcm
+sh 5079 name 70u CHR 116,6 13639 /dev/snd/pcmC0D0p
+
+name@comp:~$ kill -9 5079
+```
+
 ## TODO
 
-- [ ] Fix clock drift
+- [x] Fix clock drift
   - ...except it doesn't appear to be a problem after all.
 - [ ] Conform to Teensy naming conventions?
 - [ ] Autoconfiguration with OSC
   - or an audio channel containing control data
 - [ ] Quantify latency
 - [ ] Arbitrary audio buffer size, number of channels, bit-depth.
+
+## Notes/Queries
+- Sending audio from the server to Teensy, and back to the server, results in
+  occasional dropouts; These appear to be delays, either in Teensy sending a
+  UDP buffer, or in the JackTripServer receiving it. Either way, they're 
+  probably due to the relative lack of sophistication in the JackTripClient 
+  implementation.
+- Maximum undistorted level for the audio shield's headphone output is 0.8. 
+  Sending anything hotter than that (and back into an audio interface) results
+  in a mangling of the signal. Something like modularity applied to sample 
+  values; it's weird.
+- JackTrip's UdpDataProtocol class ultimately derives from QThread. For each
+  peer that connects to the server, a new instance of UdpDataProtocol, and
+  thus a new thread, is created. Consequently, adding many clients/peers will
+  have an effect on performance, and may even be a contributing factor in the
+  dropouts described above.
+  - JackTrip doesn't support multicast. NetJack does.
+- Using a dummy driver it's possible to set a very low buffer size, consequently
+  `AUDIO_BLOCK_SAMPLES` can be set as low as 8, with (initial) roundtrip latency
+  of ~1.5 ms. 4 samples seems to be too small even for a dummy driver. 8 is a 
+  little flakey; 16 can yield round-trip latency of as little as 1.8 ms.
