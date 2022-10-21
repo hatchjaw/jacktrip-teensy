@@ -43,7 +43,7 @@ public:
 private:
     static constexpr uint8_t NUM_CHANNELS{2};
     static const uint32_t UDP_BUFFER_SIZE{PACKET_HEADER_SIZE + NUM_CHANNELS * AUDIO_BLOCK_SAMPLES * 2};
-    static const uint32_t RECEIVE_TIMEOUT{2500};
+    static const uint32_t RECEIVE_TIMEOUT_MS{10000};
 
     /**
      * Remote server tcp port for initial handshake.
@@ -106,7 +106,7 @@ private:
 
     bool connected{false};
 
-    uint32_t lastReceive{0};
+    elapsedMillis lastReceive{0};
 
     /**
      * UDP packet buffer (in/out)
@@ -135,6 +135,12 @@ private:
             NUM_CHANNELS,
             NUM_CHANNELS
     };
+
+    elapsedMicros packetInterval{0};
+    JackTripPacketHeader prevHeader;
+    bool awaitingFirstPacket{true};
+    int printCount{0};
+    const int PRINT_LIMIT{1000000};
 };
 
 

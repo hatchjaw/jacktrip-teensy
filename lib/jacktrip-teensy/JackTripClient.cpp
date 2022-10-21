@@ -3,11 +3,12 @@
 //
 
 #include "JackTripClient.h"
+#include <inttypes.h>
 
 JackTripClient::JackTripClient(IPAddress &clientIpAddress, IPAddress &serverIpAddress) :
         AudioStream(2, inputQueueArray),
         clientIP(clientIpAddress),
-        serverIP(serverIpAddress){
+        serverIP(serverIpAddress) {
     // Generate a MAC address (from the program-once area of Teensy's flash
     // memory) to assign to the ethernet shield.
     teensyMAC(clientMAC);
@@ -88,6 +89,7 @@ bool JackTripClient::connect(uint16_t timeout) {
     if (c.connect(serverIP, REMOTE_TCP_PORT)) {
         Serial.println("Succeeded!");
         connected = true;
+        awaitingFirstPacket = true;
     } else {
         Serial.println("Failed.");
         return false;
@@ -116,7 +118,10 @@ bool JackTripClient::connect(uint16_t timeout) {
     serverUdpPort = port;
     Serial.printf("JackTripClient: Server port is %d\n", serverUdpPort);
 
-    lastReceive = millis();
+    lastReceive = 0;
+    packetHeader.SeqNumber = 0;
+    packetHeader.TimeStamp = 0;
+    prevHeader.TimeStamp = 0;
     return connected;
 }
 
@@ -127,8 +132,12 @@ void JackTripClient::stop() {
 
 void JackTripClient::update(void) {
     if (connected) {
-        sendPacket();
         receivePacket();
+    }
+
+    // Might have received an exit packet.
+    if (connected) {
+        sendPacket();
     }
 }
 
@@ -137,8 +146,6 @@ bool JackTripClient::isConnected() const {
 }
 
 void JackTripClient::sendPacket() {
-    // Copy the packet header to the UDP buffer.
-    memcpy(buffer, &packetHeader, PACKET_HEADER_SIZE);
     uint8_t *pos = buffer + PACKET_HEADER_SIZE;
     // Size in memory of one channel's worth of samples.
     auto channelFrameSize = AUDIO_BLOCK_SAMPLES * sizeof(uint16_t);
@@ -156,6 +163,21 @@ void JackTripClient::sendPacket() {
         }
     }
 
+    packetHeader.TimeStamp += packetInterval;
+    packetHeader.SeqNumber++;
+#ifdef PRINT_PACKET_INFO
+    if (printCount < PRINT_LIMIT) {
+        Serial.printf("JackTripClient: packet seq number: %d\n", packetHeader.SeqNumber);
+        Serial.print("JackTripClient: packet interval: ");
+        Serial.print(packetInterval);
+        Serial.println(" µs");
+    }
+#endif
+    packetInterval = 0;
+
+    // Copy the packet header to the UDP buffer.
+    memcpy(buffer, &packetHeader, PACKET_HEADER_SIZE);
+
     // Send the packet.
     beginPacket(serverIP, serverUdpPort);
     size_t written = write(buffer, UDP_BUFFER_SIZE);
@@ -163,9 +185,6 @@ void JackTripClient::sendPacket() {
         Serial.println("JackTripClient: Net buffer is too small");
     }
     endPacket();
-
-//    packetHeader.TimeStamp++; // This isn't necessary.
-    packetHeader.SeqNumber++;
 }
 
 void JackTripClient::receivePacket() {
@@ -175,7 +194,7 @@ void JackTripClient::receivePacket() {
     // remaining in the UDP stream. But how does this work so smoothly?...
     // TODO: override parsePacket()?
     if ((size = parsePacket())) {
-        lastReceive = millis();
+        lastReceive = 0;
 
         if (size == EXIT_PACKET_SIZE && isExitPacket()) {
             // Exit sequence
@@ -190,17 +209,37 @@ void JackTripClient::receivePacket() {
             // Read the UDP packet into the buffer.
             read(buffer, UDP_BUFFER_SIZE);
 
+            // Read the header from the packet received from the server.
+            JackTripPacketHeader *serverHeader;
+            serverHeader = reinterpret_cast<JackTripPacketHeader *>(buffer);
+
+#ifdef PRINT_PACKET_INFO
+            if (++printCount < PRINT_LIMIT) {
+                //            Serial.printf("New server timestamp: %lld µs\n", serverHeader->TimeStamp);
+//            Serial.printf("Prev server timestamp: %lld µs\n", prevHeader.TimeStamp);
+//                Serial.printf("Server sequence number: %d\n", serverHeader->SeqNumber);
+                Serial.printf("Server packet interval: %lld µs\n", serverHeader->TimeStamp - prevHeader.TimeStamp);
+                prevHeader = *serverHeader;
+
+//            Serial.printf("Server timestamp: %lld µs\n", serverHeader->TimeStamp);
+//            Serial.printf("Teensy timestamp: %llu µs\n", packetHeader.TimeStamp);
+                Serial.printf("Server - client timestamp diff = %lld µs\n", serverHeader->TimeStamp - packetHeader
+                        .TimeStamp);
+                Serial.printf("Server seq num: %d; server - client diff = %d\n",
+                              serverHeader->SeqNumber,
+                              serverHeader->SeqNumber - packetHeader.SeqNumber);
+                Serial.println();
+            }
+#endif
+
+            if (awaitingFirstPacket) {
+                packetHeader.TimeStamp = serverHeader->TimeStamp;
+                packetHeader.SeqNumber = serverHeader->SeqNumber;
+                awaitingFirstPacket = false;
+            }
+
             // Size in memory of one channel's worth of samples.
             auto channelFrameSize = AUDIO_BLOCK_SAMPLES * sizeof(uint16_t);
-
-//            auto *header = new JackTripPacketHeader;
-//            memcpy(header, buffer, PACKET_HEADER_SIZE);
-////            if (header->SeqNumber - prevHeader.SeqNumber != 1) {
-//                Serial.println(header->SeqNumber);
-//                Serial.println(header->TimeStamp);
-////            }
-////            prevHeader.SeqNumber = header->SeqNumber;
-////            prevHeader.TimeStamp = header->TimeStamp;
 
             // Write samples to output.
             audio_block_t *outBlock[NUM_CHANNELS];
@@ -221,16 +260,16 @@ void JackTripClient::receivePacket() {
         }
     }
 
-//    if (millis() - lastReceive > RECEIVE_TIMEOUT) {
+//    if (lastReceive > RECEIVE_TIMEOUT) {
 //        Serial.printf("JackTripClient: Nothing received for %.1f s\n", RECEIVE_TIMEOUT / 1000.f);
 //        Serial.printf("JackTripClient: (Is JACK definitely running on the server?)\n");
 //        stop();
 //        lastReceive = millis();
 //    }
 
-    if (millis() - lastReceive > RECEIVE_TIMEOUT) {
-        Serial.printf("JackTripClient: Nothing received for %.1f s\n", RECEIVE_TIMEOUT / 1000.f);
-        lastReceive = millis();
+    if (lastReceive > RECEIVE_TIMEOUT_MS) {
+        Serial.printf("JackTripClient: Nothing received for %.1f s. Stopping.\n", RECEIVE_TIMEOUT_MS / 1000.f);
+        stop();
     }
 }
 

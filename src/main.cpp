@@ -1,7 +1,7 @@
 #include <NativeEthernet.h>
 #include <Audio.h>
 #include "faust/PassThrough/PassThrough.h"
-#include "JackTripClient.h"
+#include <JackTripClient.h>
 
 // Define this to wait for a serial connection before proceeding with execution
 //#define WAIT_FOR_SERIAL
