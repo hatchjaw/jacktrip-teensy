@@ -5,12 +5,11 @@
 #ifndef JACKTRIP_TEENSY_JACKTRIPCLIENT_H
 #define JACKTRIP_TEENSY_JACKTRIPCLIENT_H
 
-#ifndef ETHERNET_MAC_LAST_BYTE
-#define ETHERNET_MAC_LAST_BYTE 0x00
-#endif
+#undef CONF_DHCP
 
 #include <Audio.h>
 #include <NativeEthernet.h>
+#include <TeensyID.h>
 #include "PacketHeader.h"
 //#include <PacketHeader.h> // Might be nice to include this from jacktrip
 
@@ -44,7 +43,7 @@ public:
 private:
     static constexpr uint8_t NUM_CHANNELS{2};
     static const uint32_t UDP_BUFFER_SIZE{PACKET_HEADER_SIZE + NUM_CHANNELS * AUDIO_BLOCK_SAMPLES * 2};
-    static const uint32_t RECEIVE_TIMEOUT{2500};
+    static const uint32_t RECEIVE_TIMEOUT_MS{10000};
 
     /**
      * Remote server tcp port for initial handshake.
@@ -54,7 +53,6 @@ private:
      * Size, in bytes, of JackTrip's exit packet
      */
     const uint8_t EXIT_PACKET_SIZE{63};
-
     /**
      * Attempt to establish an ethernet connection.
      * @return Connection status
@@ -91,7 +89,7 @@ private:
     /**
      * MAC address to assign to Teensy's ethernet shield.
      */
-    byte clientMAC[6]{0xDE, 0xAD, 0xBE, 0xEF, 0xFE, ETHERNET_MAC_LAST_BYTE};
+    byte clientMAC[6]{};
     /**
      * IP to assign to Teensy.
      */
@@ -108,7 +106,7 @@ private:
 
     bool connected{false};
 
-    uint32_t lastReceive{0};
+    elapsedMillis lastReceive{0};
 
     /**
      * UDP packet buffer (in/out)
@@ -137,6 +135,12 @@ private:
             NUM_CHANNELS,
             NUM_CHANNELS
     };
+
+    elapsedMicros packetInterval{0};
+    JackTripPacketHeader prevHeader;
+    bool awaitingFirstPacket{true};
+    int printCount{0};
+    const int PRINT_LIMIT{1000000};
 };
 
 

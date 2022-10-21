@@ -2,18 +2,23 @@
 
 ## Building
 
-The project is built with [Platformio](https://platformio.org). 
+This project is built with [PlatformIO](https://platformio.org). 
 Supported hardware: Teensy 4.1; a host machine running Ubuntu 20.04.
 
 ```shell
 # Clone the repo
 git clone https://github.com/hatchjaw/jacktrip-teensy
 # Build the program and upload it to teensy
-pio run -e client[N]
+pio run (--upload-port /dev/ttyACM<n>)
+# ...and monitor serial output
+pio device monitor (-p /dev/ttyACM<n>)
 ```
-where `N` is the client number. See [platformio.ini](platformio.ini).
 
 ## Setup
+
+There's a friendly, high-level
+[guide](https://ccrma.stanford.edu/docs/common/IETF.html) 
+to Jack and JackTrip on the CCRMA website.
 
 ### JackTrip
 
@@ -63,14 +68,13 @@ PlatformIO is configured to upload by default:
 targets = upload
 ```
 
-The various `client` working environments assist with assigning distinct MAC
-address and IP to Teens(y|ies). PlatformIO also defines `AUDIO_BLOCK_SAMPLES`
-which sets Teensy's audio block size.
+PlatformIO defines `AUDIO_BLOCK_SAMPLES` which sets Teensy's audio block size. 
 
 ### Hardware
 
+Connect a computer running a jacktrip hub server to an ethernet switch.
 Teens(y|ies), running this program, with ethernet shield connected, should be 
-attached, by an ethernet cable, to a computer running a jacktrip server.
+attached, by an ethernet cable, to the switch.
 
 ### Ethernet
 
@@ -93,41 +97,90 @@ _Configure_, navigate to _Driver_, and select the appropriate _Output Device_
 matches the value being sent with each jacktrip UDP packet, as specified in
 [JackTripClient.h](src/JackTripClient.h).
 
-Verify, either via Cadence or QJackCtl that Jack is running, and 
-doing so at the desired sample rate.
+Alternatively run a dummy driver with sample rate and buffer size of your 
+choosing.
 
-After uploading to a Teensy (`pio run -e [working environment]`), 
+Verify, either via Cadence or QJackCtl that Jack is running, and 
+doing so at the desired sample rate/buffer size.
+
+_TODO: add scripts to automate this process_
+
+After uploading to a Teensy (`pio run`), 
 the program will wait for a serial connection (if the `WAIT_FOR_SERIAL` 
 define is set).
-Start a jacktrip server with `jacktrip -S -q2`.
-Then you can open a serial connection to (a) Teensy and the program will
-resume (`pio device monitor -p /dev/ttyACMX`).
+Start jacktrip on the computer in hub server mode with buffer latency of 2
+(rather than the default, 4)
+```shell
+jacktrip -S -q2
+``` 
+Specify patching mode (no autopatching) and instruct jacktrip to report
+packet loss, buffer overflow/underruns with
+```shell
+jacktrip -S -q2 -p5 -I1
+```
 
-Play some audio in an application — e.g. Audacity — for which it is possible to 
-select jack as the output device. Then use QJackCtl or Cadence (Catia) to route
-audio from that application to the client, i.e. Teensy.
-In Audacity specifically, select JACK Audio Connection Kit as the host, and
-`__ffff_[clientIP]` as the output device.
+Then open a serial connection to Teensy (`pio device monitor`) and the program 
+will resume.
+
+Play some audio in an application — e.g. Audacity, Reaper — for which it is
+possible to select jack as the output device. Then use QJackCtl or 
+Cadence (Catia) to route audio from that application to the client, i.e. Teensy,
+which will appear as `__ffff_[clientIP]`.
 
 Plug some
 headphones into Teensy and hear the audio that's being delivered from the
 server over UDP. 
 Route audio from the client to system playback; plug some headphones into your 
-computer and hear audio that's being sent from Teensy to the server.
+computer/audio interface and hear audio that's being sent from Teensy to the 
+server.
 
 ## Notes
 
 ### Jacktrip protocol (Hub mode)
 
-- TCP connection to exchange UDP ports between client and server
-- Client starts to send UDP packets, the server uses the header to initialize jack parameters
+- A TCP handshake is used to exchange UDP ports between client and server.
+- Client starts to send UDP packets, the server uses the header to initialize 
+  jack parameters.
+
+### Alsa
+
+If, between sample rate/buffer size/driver changes, audio locks up, to force
+Alsa to restart:
+
+```shell
+name@comp:~$ lsof | grep pcm
+sh 5079 name 70u CHR 116,6 13639 /dev/snd/pcmC0D0p
+
+name@comp:~$ kill -9 5079
+```
 
 ## TODO
 
-- [ ] Fix clock drift
+- [x] Fix clock drift
   - ...except it doesn't appear to be a problem after all.
 - [ ] Conform to Teensy naming conventions?
 - [ ] Autoconfiguration with OSC
   - or an audio channel containing control data
 - [ ] Quantify latency
 - [ ] Arbitrary audio buffer size, number of channels, bit-depth.
+
+## Notes/Queries
+- Sending audio from the server to Teensy, and back to the server, results in
+  occasional dropouts; These appear to be delays, either in Teensy sending a
+  UDP buffer, or in the JackTripServer receiving it. Either way, they're 
+  probably due to the relative lack of sophistication in the JackTripClient 
+  implementation.
+- Maximum undistorted level for the audio shield's headphone output is 0.8. 
+  Sending anything hotter than that (and back into an audio interface) results
+  in a mangling of the signal. Something like modularity applied to sample 
+  values; it's weird.
+- JackTrip's UdpDataProtocol class ultimately derives from QThread. For each
+  peer that connects to the server, a new instance of UdpDataProtocol, and
+  thus a new thread, is created. Consequently, adding many clients/peers will
+  have an effect on performance, and may even be a contributing factor in the
+  dropouts described above.
+  - JackTrip doesn't support multicast. NetJack does.
+- Using a dummy driver it's possible to set a very low buffer size, consequently
+  `AUDIO_BLOCK_SAMPLES` can be set as low as 8, with (initial) roundtrip latency
+  of ~1.5 ms. 4 samples seems to be too small even for a dummy driver. 8 is a 
+  little flakey; 16 can yield round-trip latency of as little as 1.8 ms.
