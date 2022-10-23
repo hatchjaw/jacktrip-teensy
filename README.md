@@ -1,6 +1,6 @@
 # Teensy as a JackTrip client
 
-## Building
+## Hello
 
 This project is built with [PlatformIO](https://platformio.org). 
 Supported hardware: Teensy 4.1; a host machine running Ubuntu 20.04.
@@ -60,7 +60,7 @@ Install platformIO's
 or [Teensy's](https://www.pjrc.com/teensy/loader_linux.html). 
 Both... shouldn't be a problem.
 
-PlatformIO is configured to upload by default:
+[platformio.ini](platformio.ini) is configured to upload by default, not just build:
 
 ```ini
 [env]
@@ -68,7 +68,20 @@ PlatformIO is configured to upload by default:
 targets = upload
 ```
 
-PlatformIO defines `AUDIO_BLOCK_SAMPLES` which sets Teensy's audio block size. 
+It also defines `AUDIO_BLOCK_SAMPLES` which sets Teensy's audio block size.
+
+It _also_ specifices that the GUI Teensy Loader should be used for uploading.
+The CLI version behaves weirdly; it tends to need two runs for the upload
+process to work. The GUI app seems to get the job done more reliably. You may, 
+however, see the following at the end of the output for `pio run`:
+```shell
+...
+Uploading .pio/build/teensy41/firmware.hex
+Hangup
+*** [upload] Error 129
+```
+But relax; if Teensy Loader shows a "Programming" modal
+with a progress bar, all should be well.
 
 ### Hardware
 
@@ -133,6 +146,19 @@ server over UDP.
 Route audio from the client to system playback; plug some headphones into your 
 computer/audio interface and hear audio that's being sent from Teensy to the 
 server.
+
+The client is resilient to the changing state of the server, i.e. if Teensy 
+starts and there's no server, the client will poll TCP until a server appears
+on the designated IP address. If the server is shut down or killed, Teensy can
+attempt to reconnect with a `loop()` like the following:
+
+```c++
+void loop() {
+    if (!jtc.isConnected()) {
+        jtc.connect(2500);
+    }
+}
+```
 
 ## Notes
 

@@ -3,7 +3,6 @@
 //
 
 #include "JackTripClient.h"
-#include <inttypes.h>
 
 JackTripClient::JackTripClient(IPAddress &clientIpAddress, IPAddress &serverIpAddress) :
         AudioStream(2, inputQueueArray),
@@ -79,7 +78,7 @@ bool JackTripClient::connect(uint16_t timeout) {
         return false;
     }
 
-    // Attempt handshake with JackTrip server via TCP port.
+    // Attempt TCP handshake with JackTrip server.
     Serial.print("JackTripClient: Connecting to JackTrip server at ");
     Serial.print(serverIP);
     Serial.printf(":%d... ", REMOTE_TCP_PORT);
@@ -88,10 +87,8 @@ bool JackTripClient::connect(uint16_t timeout) {
     c.setConnectionTimeout(timeout);
     if (c.connect(serverIP, REMOTE_TCP_PORT)) {
         Serial.println("Succeeded!");
-        connected = true;
-        awaitingFirstPacket = true;
     } else {
-        Serial.println("Failed.");
+//        Serial.println("Failed.");
         return false;
     }
 
@@ -102,7 +99,6 @@ bool JackTripClient::connect(uint16_t timeout) {
     if (4 != c.write((const uint8_t *) &port, 4)) {
         Serial.println("JackTripClient: failed to send UDP port to server.");
         c.close();
-        connected = false;
         return false;
     }
     // Patience...
@@ -113,6 +109,9 @@ bool JackTripClient::connect(uint16_t timeout) {
         c.close();
         connected = false;
         return false;
+    } else {
+        connected = true;
+        awaitingFirstPacket = true;
     }
 
     serverUdpPort = port;
@@ -126,7 +125,7 @@ bool JackTripClient::connect(uint16_t timeout) {
 }
 
 void JackTripClient::stop() {
-    EthernetUDP::stop();
+//    EthernetUDP::stop(); // This isn't a good idea after all.
     connected = false;
 }
 
@@ -166,12 +165,10 @@ void JackTripClient::sendPacket() {
     packetHeader.TimeStamp += packetInterval;
     packetHeader.SeqNumber++;
 #ifdef PRINT_PACKET_INFO
-    if (printCount < PRINT_LIMIT) {
-        Serial.printf("JackTripClient: packet seq number: %d\n", packetHeader.SeqNumber);
-        Serial.print("JackTripClient: packet interval: ");
-        Serial.print(packetInterval);
-        Serial.println(" µs");
-    }
+    Serial.printf("JackTripClient: packet seq number: %d\n", packetHeader.SeqNumber);
+    Serial.print("JackTripClient: packet interval: ");
+    Serial.print(packetInterval);
+    Serial.println(" µs");
 #endif
     packetInterval = 0;
 
@@ -214,22 +211,20 @@ void JackTripClient::receivePacket() {
             serverHeader = reinterpret_cast<JackTripPacketHeader *>(buffer);
 
 #ifdef PRINT_PACKET_INFO
-            if (++printCount < PRINT_LIMIT) {
-                //            Serial.printf("New server timestamp: %lld µs\n", serverHeader->TimeStamp);
+            //            Serial.printf("New server timestamp: %lld µs\n", serverHeader->TimeStamp);
 //            Serial.printf("Prev server timestamp: %lld µs\n", prevHeader.TimeStamp);
 //                Serial.printf("Server sequence number: %d\n", serverHeader->SeqNumber);
-                Serial.printf("Server packet interval: %lld µs\n", serverHeader->TimeStamp - prevHeader.TimeStamp);
-                prevHeader = *serverHeader;
+            Serial.printf("Server packet interval: %lld µs\n", serverHeader->TimeStamp - prevHeader.TimeStamp);
+            prevHeader = *serverHeader;
 
 //            Serial.printf("Server timestamp: %lld µs\n", serverHeader->TimeStamp);
 //            Serial.printf("Teensy timestamp: %llu µs\n", packetHeader.TimeStamp);
-                Serial.printf("Server - client timestamp diff = %lld µs\n", serverHeader->TimeStamp - packetHeader
-                        .TimeStamp);
-                Serial.printf("Server seq num: %d; server - client diff = %d\n",
-                              serverHeader->SeqNumber,
-                              serverHeader->SeqNumber - packetHeader.SeqNumber);
-                Serial.println();
-            }
+            Serial.printf("Server - client timestamp diff = %lld µs\n", serverHeader->TimeStamp - packetHeader
+                    .TimeStamp);
+            Serial.printf("Server seq num: %d; server - client diff = %d\n",
+                          serverHeader->SeqNumber,
+                          serverHeader->SeqNumber - packetHeader.SeqNumber);
+            Serial.println();
 #endif
 
             if (awaitingFirstPacket) {
@@ -259,13 +254,6 @@ void JackTripClient::receivePacket() {
             }
         }
     }
-
-//    if (lastReceive > RECEIVE_TIMEOUT) {
-//        Serial.printf("JackTripClient: Nothing received for %.1f s\n", RECEIVE_TIMEOUT / 1000.f);
-//        Serial.printf("JackTripClient: (Is JACK definitely running on the server?)\n");
-//        stop();
-//        lastReceive = millis();
-//    }
 
     if (lastReceive > RECEIVE_TIMEOUT_MS) {
         Serial.printf("JackTripClient: Nothing received for %.1f s. Stopping.\n", RECEIVE_TIMEOUT_MS / 1000.f);

@@ -72,17 +72,18 @@ void setup() {
 }
 
 void loop() {
-    if (jtc.isConnected()) {
+    if (!jtc.isConnected()) {
+        jtc.connect(2500);
+        if (jtc.isConnected()) {
+            AudioProcessorUsageMaxReset();
+            AudioMemoryUsageMaxReset();
+        }
+    } else {
         if (millis() - last_perf_report > PERF_REPORT_INTERVAL) {
             Serial.printf("Audio memory in use: %d blocks; processor %f %%\n",
                           AudioMemoryUsage(),
                           AudioProcessorUsage());
             last_perf_report = millis();
-        }
-    } else {
-        jtc.connect(2500);
-        if (jtc.isConnected()) {
-            startAudio();
         }
     }
 }
@@ -97,7 +98,4 @@ void startAudio() {
     audioShield.audioProcessorDisable();
     audioShield.autoVolumeDisable();
     audioShield.dacVolumeRampDisable();
-
-    AudioProcessorUsageMaxReset();
-    AudioMemoryUsageMaxReset();
 }
