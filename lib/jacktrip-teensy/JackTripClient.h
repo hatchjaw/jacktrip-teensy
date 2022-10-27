@@ -11,7 +11,8 @@
 #include <NativeEthernet.h>
 #include <TeensyID.h>
 #include "PacketHeader.h"
-//#include <PacketHeader.h> // Might be nice to include this from jacktrip
+
+#define PRINT_PACKET_INFO
 
 /**
  * Inputs: signals produced by other audio components, to be sent to peers over
@@ -127,7 +128,7 @@ private:
     JackTripPacketHeader packetHeader{
             0,
             0,
-            // Teensy's default block size is 128. May be overwritten by
+            // Teensy's default block size is 128. Can be overridden with
             // compiler flag -DAUDIO_BLOCK_SAMPLES (see platformio.ini).
             AUDIO_BLOCK_SAMPLES,
             samplingRateT::SR44,
@@ -136,9 +137,12 @@ private:
             NUM_CHANNELS
     };
 
-    elapsedMicros packetInterval{0};
-    JackTripPacketHeader prevHeader;
     bool awaitingFirstPacket{true};
+
+    elapsedMillis diagnosticPrintInterval{0};
+    elapsedMicros packetInterval{0};
+    JackTripPacketHeader prevServerHeader;
+    JackTripPacketHeader *serverHeader;
 };
 
 

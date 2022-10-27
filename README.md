@@ -85,13 +85,13 @@ with a progress bar, all should be well.
 
 ### Hardware
 
-Connect a computer running a jacktrip hub server to an ethernet switch.
+Connect a computer running a JackTrip hub server to an ethernet switch.
 Teens(y|ies), running this program, with ethernet shield connected, should be 
 attached, by an ethernet cable, to the switch.
 
 ### Ethernet
 
-The wired connection on the machine running the jacktrip server should be
+The wired connection on the machine running the JackTrip server should be
 set to manual IPv4 mode (i.e. DHCP disabled), with **subnet mask** 
 `255.255.255.0`, **address** matching `serverIP` as specified in `main.cpp`, 
 and **gateway** `x.x.x.1` (where `x` are the first three octets of **address**).
@@ -107,7 +107,7 @@ If in doubt, try:
 If you're using an external audio interface, connect it. Open Cadence, click 
 _Configure_, navigate to _Driver_, and select the appropriate _Output Device_
 (probably something like "hw:USB,0 [USB Audio]"). Select the sample rate that
-matches the value being sent with each jacktrip UDP packet, as specified in
+matches the value being sent with each JackTrip UDP packet, as specified in
 [JackTripClient.h](src/JackTripClient.h).
 
 Alternatively run a dummy driver with sample rate and buffer size of your 
@@ -121,12 +121,12 @@ _TODO: add scripts to automate this process_
 After uploading to a Teensy (`pio run`), 
 the program will wait for a serial connection (if the `WAIT_FOR_SERIAL` 
 define is set).
-Start jacktrip on the computer in hub server mode with buffer latency of 2
+Start JackTrip on the computer in hub server mode with buffer latency of 2
 (rather than the default, 4)
 ```shell
 jacktrip -S -q2
 ``` 
-Specify patching mode (no autopatching) and instruct jacktrip to report
+Specify patching mode (no autopatching) and instruct JackTrip to report
 packet loss, buffer overflow/underruns with
 ```shell
 jacktrip -S -q2 -p5 -I1
@@ -147,18 +147,20 @@ Route audio from the client to system playback; plug some headphones into your
 computer/audio interface and hear audio that's being sent from Teensy to the 
 server.
 
-The client is resilient to the changing state of the server, i.e. if Teensy 
-starts and there's no server, the client will poll TCP until a server appears
-on the designated IP address. If the server is shut down or killed, Teensy can
-attempt to reconnect with a `loop()` like the following:
-
+The client is resilient to the changing state of the server. With a `loop()`
+set up as follows:
 ```c++
+JackTripClient jtc;
+// setup, etc.
 void loop() {
     if (!jtc.isConnected()) {
         jtc.connect(2500);
     }
 }
 ```
+if there's no JackTrip server, the client will poll TCP until a server appears
+on the designated IP address and port. Similarly, If the server is shut down or
+killed, Teensy will attempt to reconnect.
 
 ## Notes
 
@@ -167,6 +169,7 @@ void loop() {
 - A TCP handshake is used to exchange UDP ports between client and server.
 - Client starts to send UDP packets, the server uses the header to initialize 
   jack parameters.
+- Don't run jacktrip with loopback auto-patching. Just. No. 
 
 ### Alsa
 
@@ -190,7 +193,7 @@ name@comp:~$ kill -9 5079
 - [ ] Quantify latency
 - [ ] Arbitrary audio buffer size, number of channels, bit-depth.
 
-## Notes/Queries
+## More Notes/Queries
 - Sending audio from the server to Teensy, and back to the server, results in
   occasional dropouts; These appear to be delays, either in Teensy sending a
   UDP buffer, or in the JackTripServer receiving it. Either way, they're 

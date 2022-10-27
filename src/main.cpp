@@ -2,6 +2,7 @@
 #include <Audio.h>
 #include "faust/PassThrough/PassThrough.h"
 #include <JackTripClient.h>
+//#include <OSCBundle.h>
 
 // Define this to wait for a serial connection before proceeding with execution
 //#define WAIT_FOR_SERIAL
@@ -23,12 +24,16 @@ IPAddress clientIP{192, 168, 10, 100};
 // Remote server clientIP address -- should match address in IPv4 settings.
 IPAddress serverIP{192, 168, 10, 10};
 
+const uint16_t OSC_PORT = 5510;
+
 //region Audio system objects
 // Audio shield driver
 AudioControlSGTL5000 audioShield;
 AudioOutputI2S out;
 
 JackTripClient jtc{clientIP, serverIP};
+
+//EthernetUDP udp;
 
 PassThrough pt;
 AudioMixer4 mixerL;
@@ -54,6 +59,8 @@ const uint32_t PERF_REPORT_INTERVAL = 5000;
 
 //region Forward declarations
 void startAudio();
+
+void receiveOSC();
 //endregion
 
 void setup() {
@@ -65,6 +72,11 @@ void setup() {
         Serial.println("Failed to initialise jacktrip client.");
         WAIT_INFINITE()
     }
+
+//    if (!udp.begin(OSC_PORT)) {
+//        Serial.println("Failed to start listening for OSC messages.");
+//        WAIT_INFINITE()
+//    }
 
     AudioMemory(32);
 
@@ -86,9 +98,36 @@ void loop() {
             last_perf_report = millis();
         }
     }
+
+//    receiveOSC();
 }
 
+//void routeTest(OSCMessage &msg, int offset) {
+//    Serial.println("!");
+//}
+
+//void receiveOSC() {
+//    OSCMessage oscIn;
+//    int size;
+//    if ((size = udp.parsePacket())) {
+//        Serial.printf("Packet size: %d\n", size);
+//        while (size--) {
+//            oscIn.fill(udp.read());
+//        }
+//
+//        if (!oscIn.hasError()) {
+//            Serial.printf("OSCMessage::dataCount: %d\n", oscIn.size());
+//            oscIn.route("/test", [](OSCMessage &msg, int addrOffset) {
+//                Serial.println("!");
+//            });
+//        } else {
+//            Serial.printf("OSC reported an error with code %d\n", oscIn.getError());
+//        }
+//    }
+//}
+
 void startAudio() {
+//    audioShield.enable(16000000, 4096.0l * AUDIO_SAMPLE_RATE_EXACT);
     audioShield.enable();
     // "...0.8 corresponds to the maximum undistorted output for a full scale
     // signal. Usually 0.5 is a comfortable listening level."
