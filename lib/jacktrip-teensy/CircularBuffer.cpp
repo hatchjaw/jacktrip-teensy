@@ -19,11 +19,6 @@ CircularBuffer<T>::~CircularBuffer() {
 }
 
 template<typename T>
-int CircularBuffer<T>::getRwDelta() {
-    return writeIndex - readIndex;
-}
-
-template<typename T>
 int CircularBuffer<T>::getWriteIndex() {
     return writeIndex;
 }
