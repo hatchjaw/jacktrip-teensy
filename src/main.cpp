@@ -53,7 +53,7 @@ AudioConnection patchCord10(mixerR, 0, jtc, 1);
 //endregion
 
 //region Warning params
-uint32_t last_perf_report = millis();
+elapsedMillis performanceReport;
 const uint32_t PERF_REPORT_INTERVAL = 5000;
 //endregion
 
@@ -91,11 +91,11 @@ void loop() {
             AudioMemoryUsageMaxReset();
         }
     } else {
-        if (millis() - last_perf_report > PERF_REPORT_INTERVAL) {
+        if (performanceReport > PERF_REPORT_INTERVAL) {
             Serial.printf("Audio memory in use: %d blocks; processor %f %%\n",
                           AudioMemoryUsage(),
                           AudioProcessorUsage());
-            last_perf_report = millis();
+            performanceReport = 0;
         }
     }
 
@@ -127,7 +127,6 @@ void loop() {
 //}
 
 void startAudio() {
-//    audioShield.enable(16000000, 4096.0l * AUDIO_SAMPLE_RATE_EXACT);
     audioShield.enable();
     // "...0.8 corresponds to the maximum undistorted output for a full scale
     // signal. Usually 0.5 is a comfortable listening level."

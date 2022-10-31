@@ -14,11 +14,17 @@ pio run (--upload-port /dev/ttyACM<n>)
 pio device monitor (-p /dev/ttyACM<n>)
 ```
 
-## Setup
+## Setup/Tools
 
 There's a friendly, high-level
 [guide](https://ccrma.stanford.edu/docs/common/IETF.html) 
 to Jack and JackTrip on the CCRMA website.
+
+### Jack
+
+JackTrip uses Jack as its audio server. Install or update Jack as per the
+instructions
+[here](https://qjackctl.sourceforge.io/qjackctl-index.html#Installation).
 
 ### JackTrip
 
@@ -35,12 +41,6 @@ And, in order to use the gui:
 ```shell
 sudo apt install qml-module-qtquick-controls2
 ```
-
-### Jack
-
-JackTrip uses Jack as its audio server. Install or update Jack as per the
-instructions 
-[here](https://qjackctl.sourceforge.io/qjackctl-index.html#Installation).
 
 ### QJackCtl / Cadence
 
@@ -88,6 +88,11 @@ with a progress bar, all should be well.
 Connect a computer running a JackTrip hub server to an ethernet switch.
 Teens(y|ies), running this program, with ethernet shield connected, should be 
 attached, by an ethernet cable, to the switch.
+
+### Teensy
+
+[TyTools](https://github.com/Koromix/tytools) are really useful for working with
+multiple Teensies.
 
 ### Ethernet
 
@@ -185,8 +190,7 @@ name@comp:~$ kill -9 5079
 
 ## TODO
 
-- [x] Fix clock drift
-  - ...except it doesn't appear to be a problem after all.
+- [ ] Fix clock drift
 - [ ] Conform to Teensy naming conventions?
 - [ ] Autoconfiguration with OSC
   - or an audio channel containing control data

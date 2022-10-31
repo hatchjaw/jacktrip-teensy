@@ -5,14 +5,16 @@
 #ifndef JACKTRIP_TEENSY_JACKTRIPCLIENT_H
 #define JACKTRIP_TEENSY_JACKTRIPCLIENT_H
 
-#undef CONF_DHCP
-
 #include <Audio.h>
 #include <NativeEthernet.h>
 #include <TeensyID.h>
+#include <TeensyTimerTool.h>
 #include "PacketHeader.h"
+#include "CircularBuffer.h"
 
-#define PRINT_PACKET_INFO
+#undef CONF_DHCP
+
+#define DO_DIAGNOSTICS
 
 /**
  * Inputs: signals produced by other audio components, to be sent to peers over
@@ -43,8 +45,14 @@ public:
 
 private:
     static constexpr uint8_t NUM_CHANNELS{2};
-    static const uint32_t UDP_BUFFER_SIZE{PACKET_HEADER_SIZE + NUM_CHANNELS * AUDIO_BLOCK_SAMPLES * 2};
-    static const uint32_t RECEIVE_TIMEOUT_MS{5000};
+    static constexpr uint16_t UDP_PACKET_SIZE{PACKET_HEADER_SIZE + NUM_CHANNELS * AUDIO_BLOCK_SAMPLES * sizeof(uint16_t)};
+    static constexpr uint32_t RECEIVE_TIMEOUT_MS{5000};
+    static constexpr uint32_t DIAGNOSTIC_PRINT_INTERVAL{5000};
+    static constexpr uint16_t AUDIO_BUFFER_SIZE{AUDIO_BLOCK_SAMPLES * NUM_CHANNELS * 2};
+    /**
+     * Size in bytes of one channel's worth of samples.
+     */
+    static constexpr uint8_t CHANNEL_FRAME_SIZE{AUDIO_BLOCK_SAMPLES * sizeof(uint16_t)};
 
     /**
      * Remote server tcp port for initial handshake.
@@ -53,7 +61,8 @@ private:
     /**
      * Size, in bytes, of JackTrip's exit packet
      */
-    const uint8_t EXIT_PACKET_SIZE{63};
+    static constexpr uint8_t EXIT_PACKET_SIZE{63};
+
     /**
      * Attempt to establish an ethernet connection.
      * @return Connection status
@@ -73,7 +82,7 @@ private:
      * NB assumes that a new packet is ready each time it is called. This may
      * well be a dangerous assumption.
      */
-    void receivePacket();
+    void receivePackets();
 
     /**
      * Check whether a packet received from the JackTrip server is an exit
@@ -85,7 +94,12 @@ private:
     /**
      * Send a JackTrip packet containing audio routed to this object's inputs.
      */
-    void sendPacket();
+    void sendPackets();
+
+    /**
+     * Copy audio samples from incoming UDP data to Teensy audio output.
+     */
+    void doAudioOutput();
 
     /**
      * MAC address to assign to Teensy's ethernet shield.
@@ -105,20 +119,19 @@ private:
      */
     uint32_t serverUdpPort{0};
 
-    bool connected{false};
+    /*volatile*/ bool connected{false};
 
     elapsedMillis lastReceive{0};
 
     /**
      * UDP packet buffer (in/out)
      */
-    uint8_t buffer[UDP_BUFFER_SIZE]{};
+    uint8_t buffer[UDP_PACKET_SIZE]{};
 
     /**
      * "The final required component is inputQueueArray[], which should be a
      * private variable.
      * The size must match the number passed to the AudioStream constructor."
-     * TODO: maybe don't need this?
      */
     audio_block_t *inputQueueArray[2]{};
     /**
@@ -139,10 +152,18 @@ private:
 
     bool awaitingFirstPacket{true};
 
-    elapsedMillis diagnosticPrintInterval{0};
+    int initialDiagnostic{0};
+    elapsedMillis diagnosticElapsed{0};
     elapsedMicros packetInterval{0};
-    JackTripPacketHeader prevServerHeader;
+    JackTripPacketHeader prevServerHeader{};
     JackTripPacketHeader *serverHeader;
+
+    TeensyTimerTool::PeriodicTimer timer;
+
+    void timerCallback();
+
+    CircularBuffer<uint8_t> udpBuffer;
+    CircularBuffer<int16_t> audioBuffer;
 };
 
 

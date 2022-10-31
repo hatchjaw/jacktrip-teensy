@@ -7,11 +7,16 @@
 JackTripClient::JackTripClient(IPAddress &clientIpAddress, IPAddress &serverIpAddress) :
         AudioStream(2, inputQueueArray),
         clientIP(clientIpAddress),
-        serverIP(serverIpAddress) {
+        serverIP(serverIpAddress),
+        timer(TeensyTimerTool::TCK),
+        udpBuffer(UDP_PACKET_SIZE * 16), // This won't help. Write will eventually catch up with read.
+        audioBuffer(AUDIO_BUFFER_SIZE) {
     // Generate a MAC address (from the program-once area of Teensy's flash
     // memory) to assign to the ethernet shield.
     teensyMAC(clientMAC);
     clientIP[3] += clientMAC[5];
+
+    serverHeader = new JackTripPacketHeader;
 }
 
 uint8_t JackTripClient::begin(uint16_t port) {
@@ -28,7 +33,9 @@ uint8_t JackTripClient::begin(uint16_t port) {
     Serial.print("JackTripClient: IP is ");
     Serial.println(Ethernet.localIP());
 
-    Serial.printf("JackTripClient: Packet size is %d bytes\n", UDP_BUFFER_SIZE);
+    Serial.printf("JackTripClient: Packet size is %d bytes\n", UDP_PACKET_SIZE);
+
+//    timer.begin([this] { timerCallback(); }, 10us);
 
     return EthernetUDP::begin(port);
 }
@@ -36,8 +43,8 @@ uint8_t JackTripClient::begin(uint16_t port) {
 EthernetLinkStatus JackTripClient::startEthernet() {
     Ethernet.setSocketNum(4);
 
-    if (UDP_BUFFER_SIZE > FNET_SOCKET_DEFAULT_SIZE) {
-        Ethernet.setSocketSize(UDP_BUFFER_SIZE);
+    if (UDP_PACKET_SIZE > FNET_SOCKET_DEFAULT_SIZE) {
+        Ethernet.setSocketSize(UDP_PACKET_SIZE);
     }
 
     Serial.print("JackTripClient: MAC address is: ");
@@ -118,6 +125,7 @@ bool JackTripClient::connect(uint16_t timeout) {
     Serial.printf("JackTripClient: Server port is %d\n", serverUdpPort);
 
     lastReceive = 0;
+    initialDiagnostic = 0;
     packetHeader.SeqNumber = 0;
     packetHeader.TimeStamp = 0;
     prevServerHeader.TimeStamp = 0;
@@ -126,31 +134,109 @@ bool JackTripClient::connect(uint16_t timeout) {
 }
 
 void JackTripClient::stop() {
-//    EthernetUDP::stop(); // This isn't a good idea after all.
     connected = false;
 }
 
 void JackTripClient::update(void) {
     if (connected) {
-        receivePacket();
+        receivePackets();
+        doAudioOutput();
     }
 
     // Might have received an exit packet.
     if (connected) {
-        sendPacket();
+        sendPackets();
     }
+
+#ifdef DO_DIAGNOSTICS
+//    Serial.printf("%10" PRIu16 " %20" PRIu64 "\n", serverHeader->SeqNumber, serverHeader->TimeStamp);
+    if (++initialDiagnostic < 100 || (connected && diagnosticElapsed > DIAGNOSTIC_PRINT_INTERVAL)) {
+        Serial.printf("\n       |        Timestamp        | SeqNumber\n"
+                      "server | %20" PRIu64 "    | %9" PRIu16 "\n"
+                      "client | %20" PRIu64 "    | %9" PRIu16 "\n"
+                      " delta | %20" PRId64 " µs | %9" PRId16 "\n\n",
+                      serverHeader->TimeStamp, serverHeader->SeqNumber,
+                      packetHeader.TimeStamp, packetHeader.SeqNumber,
+                      static_cast<int64_t>(serverHeader->TimeStamp) - static_cast<int64_t>(packetHeader.TimeStamp),
+                      static_cast<int16_t>(serverHeader->SeqNumber) - static_cast<int16_t>(packetHeader.SeqNumber));
+        diagnosticElapsed = 0;
+    }
+#endif
 }
 
 bool JackTripClient::isConnected() const {
     return connected;
 }
 
-void JackTripClient::sendPacket() {
+void JackTripClient::receivePackets() {
+    int size;
+
+    // Check for incoming UDP packets. Get as many packets as are available.
+    while ((size = parsePacket())) {
+        lastReceive = 0;
+
+        if (size == EXIT_PACKET_SIZE && isExitPacket()) {
+            // Exit sequence
+            Serial.println("JackTripClient: Received exit packet");
+            Serial.printf("  maxmem: %d blocks\n", AudioMemoryUsageMax());
+            Serial.printf("  maxcpu: %f %%\n\n", AudioProcessorUsageMax());
+
+            stop();
+            return;
+        } else if (size != UDP_PACKET_SIZE) {
+            Serial.println("JackTripClient: Received a malformed packet");
+        } else {
+            // Read the UDP packet and write it into a circular buffer.
+            uint8_t in[size];
+            read(in, size);
+            udpBuffer.write(in, size);
+
+            // Read the header from the packet received from the server.
+//            serverHeader = reinterpret_cast<JackTripPacketHeader *>(in);
+            memcpy(serverHeader, in, sizeof(JackTripPacketHeader));
+
+#ifdef DO_DIAGNOSTICS
+            auto seqNumDelta = static_cast<int>(serverHeader->SeqNumber) - static_cast<int>(prevServerHeader.SeqNumber);
+            if (serverHeader->SeqNumber == 0 && seqNumDelta == -UINT16_MAX) {
+                seqNumDelta = 1;
+            }
+            if (seqNumDelta > 1) {
+                Serial.printf("PACKET DROPPED: prev %d current %d dropped %d\n\n", prevServerHeader.SeqNumber,
+                              serverHeader->SeqNumber, serverHeader->SeqNumber - prevServerHeader.SeqNumber);
+            }
+            prevServerHeader = *serverHeader;
+#endif
+
+            if (awaitingFirstPacket) {
+                Serial.println("===============================================================");
+                Serial.printf("Received first packet: Timestamp: %" PRIu64 "; SeqNumber: %" PRIu16 "\n",
+                              serverHeader->TimeStamp,
+                              serverHeader->SeqNumber);
+                packetHeader.TimeStamp = serverHeader->TimeStamp;
+                packetHeader.SeqNumber = serverHeader->SeqNumber;
+//                Serial.printf("First client packet: Timestamp: %" PRIu64 "; SeqNumber: %" PRIu16 "\n",
+//                              packetHeader.TimeStamp,
+//                              packetHeader.SeqNumber);
+                Serial.println("===============================================================\n");
+                awaitingFirstPacket = false;
+            }
+        }
+    }
+
+    if (lastReceive > RECEIVE_TIMEOUT_MS) {
+        Serial.printf("JackTripClient: Nothing received for %.1f s. Stopping.\n", RECEIVE_TIMEOUT_MS / 1000.f);
+        stop();
+    }
+}
+
+void JackTripClient::sendPackets() {
+    // Get the location in the UDP buffer to which audio samples should be
+    // written.
     uint8_t *pos = buffer + PACKET_HEADER_SIZE;
     // Size in memory of one channel's worth of samples.
     auto channelFrameSize = AUDIO_BLOCK_SAMPLES * sizeof(uint16_t);
 
-    // Copy audio to the buffer.
+    // Copy audio to the UDP buffer.
     audio_block_t *inBlock[NUM_CHANNELS];
     for (int channel = 0; channel < NUM_CHANNELS; channel++) {
         inBlock[channel] = receiveReadOnly(channel);
@@ -165,28 +251,6 @@ void JackTripClient::sendPacket() {
 
     packetHeader.TimeStamp += packetInterval;
     packetHeader.SeqNumber++;
-#ifdef PRINT_PACKET_INFO
-    auto seqNumDelta = static_cast<int>(serverHeader->SeqNumber) - static_cast<int>(prevServerHeader.SeqNumber);
-    if (serverHeader->SeqNumber == 0 && seqNumDelta == -65535) {
-        seqNumDelta = 1;
-    }
-    if (seqNumDelta > 1) {
-        Serial.printf("PACKET DROPPED: prev %d current %d dropped %d\n\n", prevServerHeader.SeqNumber,
-                      serverHeader->SeqNumber, serverHeader->SeqNumber - prevServerHeader.SeqNumber);
-    }
-    prevServerHeader = *serverHeader;
-
-    if (diagnosticPrintInterval > 5000) {
-        Serial.printf("\nTimestamp S/C: %lld/%lld µs; delta %lld µs\n", serverHeader->TimeStamp, packetHeader.TimeStamp,
-                      serverHeader->TimeStamp - packetHeader.TimeStamp);
-        Serial.printf("Seq num S/C: %d/%d; Skew %d\n\n", serverHeader->SeqNumber, packetHeader.SeqNumber,
-                      serverHeader->SeqNumber - packetHeader.SeqNumber);
-//        Serial.print("packet interval: ");
-//        Serial.print(packetInterval);
-//        Serial.println(" µs\n");
-        diagnosticPrintInterval = 0;
-    }
-#endif
     packetInterval = 0;
 
     // Copy the packet header to the UDP buffer.
@@ -194,77 +258,34 @@ void JackTripClient::sendPacket() {
 
     // Send the packet.
     beginPacket(serverIP, serverUdpPort);
-    size_t written = write(buffer, UDP_BUFFER_SIZE);
-    if (written != UDP_BUFFER_SIZE) {
+    size_t written = write(buffer, UDP_PACKET_SIZE);
+    if (written != UDP_PACKET_SIZE) {
         Serial.println("JackTripClient: Net buffer is too small");
     }
     endPacket();
 }
 
-void JackTripClient::receivePacket() {
-    int size;
-
-    // parsePacket() does the read, essentially. Afterwards there's no data
-    // remaining in the UDP stream. But how does this work so smoothly?...
-    // TODO: override parsePacket()?
-    if ((size = parsePacket())) {
-        lastReceive = 0;
-
-        if (size == EXIT_PACKET_SIZE && isExitPacket()) {
-            // Exit sequence
-            Serial.println("JackTripClient: Received exit packet");
-            Serial.printf("  maxmem: %d blocks\n", AudioMemoryUsageMax());
-            Serial.printf("  maxcpu: %f %%\n\n", AudioProcessorUsageMax());
-
-            stop();
-        } else if (size != UDP_BUFFER_SIZE) {
-            Serial.println("JackTripClient: Received a malformed packet");
-        } else {
-            // Read the UDP packet into the buffer.
-            read(buffer, UDP_BUFFER_SIZE);
-
-            // Read the header from the packet received from the server.
-            serverHeader = reinterpret_cast<JackTripPacketHeader *>(buffer);
-
-            if (awaitingFirstPacket) {
-                Serial.println("===============================================================");
-                Serial.printf("Received first packet: Timestamp: %llu; SeqNumber: %d\n",
-                              serverHeader->TimeStamp,
-                              serverHeader->SeqNumber);
-                packetHeader.TimeStamp = serverHeader->TimeStamp;
-                packetHeader.SeqNumber = serverHeader->SeqNumber;
-//                Serial.printf("First client packet: Timestamp: %llu; SeqNumber: %d\n",
-//                              packetHeader.TimeStamp,
-//                              packetHeader.SeqNumber);
-                Serial.println("===============================================================\n");
-                awaitingFirstPacket = false;
-            }
-
-            // Size in memory of one channel's worth of samples.
-            auto channelFrameSize = AUDIO_BLOCK_SAMPLES * sizeof(uint16_t);
-
-            // Write samples to output.
-            audio_block_t *outBlock[NUM_CHANNELS];
-            for (int channel = 0; channel < NUM_CHANNELS; channel++) {
-                outBlock[channel] = allocate();
-                // Only proceed if an audio block was allocated, i.e. the
-                // current output channel is connected to something.
-                if (outBlock[channel]) {
-                    // Get the start of the sample data for the current channel.
-                    auto start = (const int16_t *) (buffer + PACKET_HEADER_SIZE + channelFrameSize * channel);
-                    // Copy the samples to the appropriate channel of the output block.
-                    memcpy(outBlock[channel]->data, start, channelFrameSize);
-                    // Finish up.
-                    transmit(outBlock[channel], channel);
-                    release(outBlock[channel]);
-                }
-            }
+void JackTripClient::doAudioOutput() {
+    // Copy from UDP inBuffer to audio output.
+    // Write samples to output.
+    audio_block_t *outBlock[NUM_CHANNELS];
+    uint8_t data[UDP_PACKET_SIZE];
+    // Read a packet from the input UDP buffer
+    udpBuffer.read(data, UDP_PACKET_SIZE);
+    for (int channel = 0; channel < NUM_CHANNELS; channel++) {
+        outBlock[channel] = allocate();
+        // Only proceed if an audio block was allocated, i.e. the
+        // current output channel is connected to something.
+        if (outBlock[channel]) {
+            // Get the start of the sample data in the packet. Cast to desired
+            // bit-resolution.
+            auto start = (const int16_t *) (data + PACKET_HEADER_SIZE + CHANNEL_FRAME_SIZE * channel);
+            // Copy the samples to the output block.
+            memcpy(outBlock[channel]->data, start, CHANNEL_FRAME_SIZE);
+            // Finish up.
+            transmit(outBlock[channel], channel);
+            release(outBlock[channel]);
         }
-    }
-
-    if (lastReceive > RECEIVE_TIMEOUT_MS) {
-        Serial.printf("JackTripClient: Nothing received for %.1f s. Stopping.\n", RECEIVE_TIMEOUT_MS / 1000.f);
-        stop();
     }
 }
 
@@ -278,4 +299,62 @@ bool JackTripClient::isExitPacket() {
         return true;
     }
     return false;
+}
+
+void JackTripClient::timerCallback() {
+    if (connected) {
+        // Read from UDP to a circular buffer
+        int size;
+
+//        Serial.print("Last receive: ");
+//        Serial.print(lastReceive);
+//        Serial.println();
+
+        while ((size = EthernetUDP::parsePacket())) {
+            lastReceive = 0;
+
+            if (size == EXIT_PACKET_SIZE && isExitPacket()) {
+                // Exit sequence
+                Serial.println("JackTripClient: Received exit packet");
+                Serial.printf("  maxmem: %d blocks\n", AudioMemoryUsageMax());
+                Serial.printf("  maxcpu: %f %%\n\n", AudioProcessorUsageMax());
+
+                stop();
+            } else if (size != UDP_PACKET_SIZE) {
+                Serial.printf("JackTripClient: Received a malformed packet (%d bytes)", size);
+            } else {
+                // Read the UDP packet into the buffer.
+                uint8_t in[size];
+                read(in, size);
+
+                udpBuffer.write(in, size);
+
+                // Read the header from the packet received from the server.
+                serverHeader = reinterpret_cast<JackTripPacketHeader *>(in);
+
+                if (awaitingFirstPacket) {
+                    Serial.println("===============================================================");
+                    Serial.printf("Received first packet: Timestamp: %llu; SeqNumber: %d\n",
+                                  serverHeader->TimeStamp,
+                                  serverHeader->SeqNumber);
+                    packetHeader.TimeStamp = serverHeader->TimeStamp;
+                    packetHeader.SeqNumber = serverHeader->SeqNumber;
+//                Serial.printf("First client packet: Timestamp: %llu; SeqNumber: %d\n",
+//                              packetHeader.TimeStamp,
+//                              packetHeader.SeqNumber);
+                    Serial.println("===============================================================\n");
+                    awaitingFirstPacket = false;
+                }
+            }
+        }
+
+        if (lastReceive > RECEIVE_TIMEOUT_MS) {
+            Serial.printf("JackTripClient: Nothing received for %.1f s. Stopping.\n", RECEIVE_TIMEOUT_MS / 1000.f);
+            stop();
+        }
+
+//         Write from a circular buffer to UDP
+//         First, check that enough samples have been written to the output buffer since the last send to constitute a
+//         full packet.
+    }
 }
