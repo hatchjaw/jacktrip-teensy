@@ -94,7 +94,7 @@ private:
     /**
      * Send a JackTrip packet containing audio routed to this object's inputs.
      */
-    void sendPackets();
+    void sendPacket();
 
     /**
      * Copy audio samples from incoming UDP data to Teensy audio output.
@@ -124,11 +124,6 @@ private:
     elapsedMillis lastReceive{0};
 
     /**
-     * UDP packet buffer (in/out)
-     */
-    uint8_t buffer[UDP_PACKET_SIZE]{};
-
-    /**
      * "The final required component is inputQueueArray[], which should be a
      * private variable.
      * The size must match the number passed to the AudioStream constructor."
@@ -151,8 +146,8 @@ private:
     };
 
     bool awaitingFirstPacket{true};
-
-    int initialDiagnostic{0};
+    bool doInitialDiagnostic{false};
+    int initialDiagnosticCounter{0};
     elapsedMillis diagnosticElapsed{0};
     elapsedMicros packetInterval{0};
     JackTripPacketHeader prevServerHeader{};
@@ -163,7 +158,7 @@ private:
     void timerCallback();
 
     CircularBuffer<uint8_t> udpBuffer;
-    CircularBuffer<int16_t> audioBuffer;
+//    CircularBuffer<int16_t> audioBuffer;
 };
 
 

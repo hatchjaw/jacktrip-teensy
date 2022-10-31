@@ -23,6 +23,8 @@ public:
 
     int getReadIndex();
 
+    void clear();
+
 private:
     uint16_t length;
     T *buffer;

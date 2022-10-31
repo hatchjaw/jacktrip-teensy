@@ -167,6 +167,9 @@ if there's no JackTrip server, the client will poll TCP until a server appears
 on the designated IP address and port. Similarly, If the server is shut down or
 killed, Teensy will attempt to reconnect.
 
+_NB If JackTrip is stopped and restarted, JackTripWorker may complain about "not 
+receiving Datagrams (timeout)"._
+
 ## Notes
 
 ### Jacktrip protocol (Hub mode)

@@ -8,9 +8,7 @@ template<typename T>
 CircularBuffer<T>::CircularBuffer(uint16_t length) :
         length(length),
         buffer(new T[length]) {
-    for (int i = 0; i < length; ++i) {
-        buffer[i] = 0;
-    }
+    clear();
 }
 
 template<typename T>
@@ -26,6 +24,13 @@ int CircularBuffer<T>::getWriteIndex() {
 template<typename T>
 int CircularBuffer<T>::getReadIndex() {
     return readIndex;
+}
+
+template<typename T>
+void CircularBuffer<T>::clear() {
+    for (int i = 0; i < length; ++i) {
+        buffer[i] = 0;
+    }
 }
 
 template<typename T>
