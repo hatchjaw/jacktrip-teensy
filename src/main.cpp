@@ -122,18 +122,18 @@ void receiveOSC() {
     OSCMessage messageIn;
     int size;
     if ((size = udp.parsePacket())) {
-        Serial.printf("Packet size: %d\n", size);
+//        Serial.printf("Packet size: %d\n", size);
         byte buffer[size];
         udp.read(buffer, size);
 
         // Try to read as bundle
         bundleIn.fill(buffer, size);
         if (!bundleIn.hasError() && bundleIn.size() > 0) {
-            Serial.printf("OSCBundle::size: %d\n", bundleIn.size());
+//            Serial.printf("OSCBundle::size: %d\n", bundleIn.size());
             bundleIn.route("/track", [](OSCMessage &msg, int addrOffset) {
                 char address[64];
                 msg.getAddress(address);
-                Serial.println(address);
+//                Serial.println(address);
             });
 
             bundleIn.route("/wfs/pos", [](OSCMessage &msg, int addrOffset) {
@@ -149,11 +149,11 @@ void receiveOSC() {
             // Try as message
             messageIn.fill(buffer, size);
             if (!messageIn.hasError() && messageIn.size() > 0) {
-                Serial.printf("OSCMessage::size: %d\n", messageIn.size());
+//                Serial.printf("OSCMessage::size: %d\n", messageIn.size());
                 messageIn.route("/track", [](OSCMessage &msg, int addrOffset) {
                     char address[64];
                     msg.getAddress(address);
-                    Serial.println(address);
+//                    Serial.println(address);
                 });
 
                 messageIn.route("/wfs/pos", [](OSCMessage &msg, int addrOffset) {
