@@ -22,8 +22,8 @@
  
  ************************************************************************/
 
-#ifndef faust_PassThrough_h_
-#define faust_PassThrough_h_
+#ifndef faust_WFS_h_
+#define faust_WFS_h_
 
 #include <string>
 
@@ -39,12 +39,12 @@ class MidiUI;
 class teensy_midi;
 #endif
 
-class PassThrough : public AudioStream
+class WFS : public AudioStream
 {
     public:
     
-        PassThrough();
-        ~PassThrough();
+        WFS();
+        ~WFS();
     
         virtual void update(void);
     

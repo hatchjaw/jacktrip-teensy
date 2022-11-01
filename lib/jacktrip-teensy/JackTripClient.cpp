@@ -4,16 +4,18 @@
 
 #include "JackTripClient.h"
 
-JackTripClient::JackTripClient(IPAddress &clientIpAddress, IPAddress &serverIpAddress) :
+JackTripClient::JackTripClient(IPAddress &serverIpAddress) :
         AudioStream(2, inputQueueArray),
-        clientIP(clientIpAddress),
+        clientIP(serverIpAddress), // Assume client and server on same subnet
         serverIP(serverIpAddress),
         timer(TeensyTimerTool::TCK),
-        udpBuffer(UDP_PACKET_SIZE * 16) // This won't help. Write will eventually catch up with read.
+        udpBuffer(UDP_PACKET_SIZE * 64) // This won't help. Write will eventually catch up with read.
 {
     // Generate a MAC address (from the program-once area of Teensy's flash
     // memory) to assign to the ethernet shield.
     teensyMAC(clientMAC);
+    // Use the last byte of the MAC to set the last byte of the IP.
+    // (Maybe needs a more sophisticated approach.)
     clientIP[3] += clientMAC[5];
 
     serverHeader = new JackTripPacketHeader;

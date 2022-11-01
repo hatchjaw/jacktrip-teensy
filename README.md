@@ -168,7 +168,22 @@ on the designated IP address and port. Similarly, If the server is shut down or
 killed, Teensy will attempt to reconnect.
 
 _NB If JackTrip is stopped and restarted, JackTripWorker may complain about "not 
-receiving Datagrams (timeout)"._
+receiving Datagrams (timeout)". As far as I can tell, JackTrip is indeed
+receiving datagrams at this point, but `JackTripWorker::mSpawning` is stuck set
+to `true`._
+
+## Control via OSC
+
+Using [oscsend](https://fukuchi.org/works/oscsend/index.html.en):
+
+```shell
+oscsend osc.udp://[teensy IP]:[OSC UDP port] /wfs/pos/[n] i [pos]
+```
+
+Or set up Reaper to send OSC messages, and create a custom .ReaperOSC config 
+file (-see `~/.config/REAPER/OSC`)
+
+_to be continued..._
 
 ## Notes
 

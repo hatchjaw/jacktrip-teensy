@@ -23,7 +23,7 @@
  */
 class JackTripClient : public AudioStream, EthernetUDP {
 public:
-    JackTripClient(IPAddress &clientIpAddress, IPAddress &serverIpAddress);
+    JackTripClient(IPAddress &serverIpAddress);
 
     /**
      * Set up the client.

@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------
-name: "PassThrough"
-Code generated with Faust 2.50.1 (https://faust.grame.fr)
+name: "WFS"
+Code generated with Faust 2.52.1 (https://faust.grame.fr)
 Compilation options: -a /usr/local/share/faust/teensy/teensy.cpp -lang cpp -i -es 1 -mcd 16 -uim -single -ftz 0
 ------------------------------------------------------------ */
 
@@ -44,7 +44,7 @@ Compilation options: -a /usr/local/share/faust/teensy/teensy.cpp -lang cpp -i -e
 
 #include <string.h> // for memset
 
-#include "PassThrough.h"
+#include "WFS.h"
 
 // IMPORTANT: in order for MapUI to work, the teensy linker must be g++
 /************************** BEGIN MapUI.h ******************************
@@ -107,30 +107,33 @@ Compilation options: -a /usr/local/share/faust/teensy/teensy.cpp -lang cpp -i -e
 #define __UI_H__
 
 /************************************************************************
- ************************************************************************
-    FAUST compiler
-    Copyright (C) 2003-2018 GRAME, Centre National de Creation Musicale
-    ---------------------------------------------------------------------
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- ************************************************************************
- ************************************************************************/
+ FAUST Architecture File
+ Copyright (C) 2003-2022 GRAME, Centre National de Creation Musicale
+ ---------------------------------------------------------------------
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU Lesser General Public License as published by
+ the Free Software Foundation; either version 2.1 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ GNU Lesser General Public License for more details.
+ 
+ You should have received a copy of the GNU Lesser General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ 
+ EXCEPTION : As a special exception, you may create a larger work
+ that contains this FAUST architecture section and distribute
+ that work under terms of your choice, so long as this FAUST
+ architecture section is not modified.
+ ***************************************************************************/
 
 #ifndef __export__
 #define __export__
 
-#define FAUSTVERSION "2.50.1"
+#define FAUSTVERSION "2.52.1"
 
 // Use FAUST_API for code that is part of the external API but is also compiled in faust and libfaust
 // Use LIBFAUST_API for code that is compiled in faust and libfaust
@@ -204,8 +207,8 @@ struct FAUST_API UIReal {
     
     // -- metadata declarations
     
-    virtual void declare(REAL* zone, const char* key, const char* val) {}
-    
+    virtual void declare(REAL* /*zone*/, const char* /*key*/, const char* /*val*/) {}
+
     // To be used by LLVM client
     virtual int sizeOfFAUSTFLOAT() { return sizeof(FAUSTFLOAT); }
 };
@@ -828,7 +831,7 @@ struct FAUST_API dsp_memory_manager {
      * Inform the Memory Manager with the number of expected memory zones.
      * @param count - the number of expected memory zones
      */
-    virtual void begin(size_t count) {}
+    virtual void begin(size_t /*count*/) {}
     
     /**
      * Give the Memory Manager information on a given memory zone.
@@ -836,8 +839,8 @@ struct FAUST_API dsp_memory_manager {
      * @param reads - the number of Read access to the zone used to compute one frame
      * @param writes - the number of Write access to the zone used to compute one frame
      */
-    virtual void info(size_t size, size_t reads, size_t writes) {}
-    
+    virtual void info(size_t /*size*/, size_t /*reads*/, size_t /*writes*/) {}
+
     /**
      * Inform the Memory Manager that all memory zones have been described,
      * to possibly start a 'compute the best allocation strategy' step.
@@ -1022,14 +1025,17 @@ class FAUST_API ScopedNoDenormals {
     
     private:
     
-        intptr_t fpsr;
+        intptr_t fpsr = 0;
         
         void setFpStatusRegister(intptr_t fpsr_aux) noexcept
         {
         #if defined (__arm64__) || defined (__aarch64__)
             asm volatile("msr fpcr, %0" : : "ri" (fpsr_aux));
         #elif defined (__SSE__)
-            _mm_setcsr(static_cast<uint32_t>(fpsr_aux));
+            // The volatile keyword here is needed to workaround a bug in AppleClang 13.0
+            // which aggressively optimises away the variable otherwise
+            volatile uint32_t fpsr_w = static_cast<uint32_t>(fpsr_aux);
+            _mm_setcsr(fpsr_w);
         #endif
         }
         
@@ -1037,7 +1043,7 @@ class FAUST_API ScopedNoDenormals {
         {
         #if defined (__arm64__) || defined (__aarch64__)
             asm volatile("mrs %0, fpcr" : "=r" (fpsr));
-        #elif defined ( __SSE__)
+        #elif defined (__SSE__)
             fpsr = static_cast<intptr_t>(_mm_getcsr());
         #endif
         }
@@ -1048,16 +1054,14 @@ class FAUST_API ScopedNoDenormals {
         {
         #if defined (__arm64__) || defined (__aarch64__)
             intptr_t mask = (1 << 24 /* FZ */);
+        #elif defined (__SSE__)
+        #if defined (__SSE2__)
+            intptr_t mask = 0x8040;
         #else
-            #if defined(__SSE__)
-            #if defined(__SSE2__)
-                intptr_t mask = 0x8040;
-            #else
-                intptr_t mask = 0x8000;
-            #endif
-            #else
-                intptr_t mask = 0x0000;
-            #endif
+            intptr_t mask = 0x8000;
+        #endif
+        #else
+            intptr_t mask = 0x0000;
         #endif
             getFpStatusRegister();
             setFpStatusRegister(fpsr | mask);
@@ -1070,7 +1074,7 @@ class FAUST_API ScopedNoDenormals {
 
 };
 
-#define AVOIDDENORMALS ScopedNoDenormals();
+#define AVOIDDENORMALS ScopedNoDenormals ftz_scope;
 
 #endif
 
@@ -4121,6 +4125,7 @@ architecture section is not modified.
 
 #include <vector>
 #include <string>
+#include <string.h>
 #include <algorithm>
 #include <assert.h>
 
@@ -9807,6 +9812,7 @@ struct dsp_poly_factory : public dsp_factory {
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <math.h>
 
 #ifndef FAUSTCLASS 
 #define FAUSTCLASS mydsp
@@ -9828,21 +9834,83 @@ class mydsp : public dsp {
 	
  public:
 	
+	FAUSTFLOAT fHslider0;
+	FAUSTFLOAT fHslider1;
+	int IOTA0;
+	float fVec0[1024];
 	int fSampleRate;
+	int iConst2;
+	float fVec1[128];
+	int iConst3;
+	float fVec2[32];
+	int iConst4;
+	float fVec3[128];
+	int iConst5;
+	float fVec4[1024];
+	int iConst6;
+	int iConst7;
+	int iConst8;
+	int iConst9;
+	int iConst10;
+	int iConst11;
+	int iConst12;
+	int iConst13;
+	int iConst14;
+	int iConst15;
+	int iConst16;
+	int iConst17;
+	int iConst18;
+	int iConst19;
+	int iConst20;
+	int iConst21;
+	int iConst22;
+	int iConst23;
+	int iConst24;
+	int iConst25;
+	int iConst26;
+	int iConst27;
+	int iConst28;
+	int iConst29;
+	int iConst30;
+	int iConst31;
+	int iConst32;
+	int iConst33;
+	int iConst34;
+	int iConst35;
+	int iConst36;
+	int iConst37;
+	int iConst38;
+	int iConst39;
+	int iConst40;
+	int iConst41;
+	int iConst42;
+	int iConst43;
+	int iConst44;
 	
  public:
 	
 	void metadata(Meta* m) { 
+		m->declare("basics.lib/name", "Faust Basic Element Library");
+		m->declare("basics.lib/version", "0.8");
 		m->declare("compile_options", "-a /usr/local/share/faust/teensy/teensy.cpp -lang cpp -i -es 1 -mcd 16 -uim -single -ftz 0");
-		m->declare("filename", "PassThrough.dsp");
-		m->declare("name", "PassThrough");
+		m->declare("delays.lib/name", "Faust Delay Library");
+		m->declare("delays.lib/version", "0.1");
+		m->declare("filename", "WFS.dsp");
+		m->declare("maths.lib/author", "GRAME");
+		m->declare("maths.lib/copyright", "GRAME");
+		m->declare("maths.lib/license", "LGPL with exception");
+		m->declare("maths.lib/name", "Faust Math Library");
+		m->declare("maths.lib/version", "2.5");
+		m->declare("name", "WFS");
+		m->declare("platform.lib/name", "Generic Platform Library");
+		m->declare("platform.lib/version", "0.2");
 	}
 
 	virtual int getNumInputs() {
 		return 2;
 	}
 	virtual int getNumOutputs() {
-		return 2;
+		return 16;
 	}
 	
 	static void classInit(int sample_rate) {
@@ -9850,12 +9918,75 @@ class mydsp : public dsp {
 	
 	virtual void instanceConstants(int sample_rate) {
 		fSampleRate = sample_rate;
+		float fConst0 = std::min<float>(1.92e+05f, std::max<float>(1.0f, float(fSampleRate)));
+		float fConst1 = 0.003652478f * fConst0;
+		iConst2 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.00362344f * fConst0)));
+		iConst3 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.00049592496f * fConst0)));
+		iConst4 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.000113724556f * fConst0)));
+		iConst5 = int(std::min<float>(fConst1, std::max<float>(0.0f, 5.674988e-05f * fConst0)));
+		iConst6 = int(std::min<float>(fConst1, 0.0f));
+		iConst7 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.0033951679f * fConst0)));
+		iConst8 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.00041884827f * fConst0)));
+		iConst9 = int(std::min<float>(fConst1, std::max<float>(0.0f, 8.714933e-05f * fConst0)));
+		iConst10 = int(std::min<float>(fConst1, std::max<float>(0.0f, 3.1975724e-05f * fConst0)));
+		iConst11 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.00020097956f * fConst0)));
+		iConst12 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.0031668968f * fConst0)));
+		iConst13 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.00034779706f * fConst0)));
+		iConst14 = int(std::min<float>(fConst1, std::max<float>(0.0f, 6.407854e-05f * fConst0)));
+		iConst15 = int(std::min<float>(fConst1, std::max<float>(0.0f, 1.4228649e-05f * fConst0)));
+		iConst16 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.00042833516f * fConst0)));
+		iConst17 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.0029386273f * fConst0)));
+		iConst18 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.00028294034f * fConst0)));
+		iConst19 = int(std::min<float>(fConst1, std::max<float>(0.0f, 4.452872e-05f * fConst0)));
+		iConst20 = int(std::min<float>(fConst1, std::max<float>(0.0f, 3.5597548e-06f * fConst0)));
+		iConst21 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.0006563054f * fConst0)));
+		iConst22 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.0027103592f * fConst0)));
+		iConst23 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.00022443793f * fConst0)));
+		iConst24 = int(std::min<float>(fConst1, std::max<float>(0.0f, 2.8513989e-05f * fConst0)));
+		iConst25 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.0008844303f * fConst0)));
+		iConst26 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.0024820934f * fConst0)));
+		iConst27 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.0001724387f * fConst0)));
+		iConst28 = int(std::min<float>(fConst1, std::max<float>(0.0f, 1.604596e-05f * fConst0)));
+		iConst29 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.0011126172f * fConst0)));
+		iConst30 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.0022538304f * fConst0)));
+		iConst31 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.00012707892f * fConst0)));
+		iConst32 = int(std::min<float>(fConst1, std::max<float>(0.0f, 7.133713e-06f * fConst0)));
+		iConst33 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.001340835f * fConst0)));
+		iConst34 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.0020255712f * fConst0)));
+		iConst35 = int(std::min<float>(fConst1, std::max<float>(0.0f, 8.848059e-05f * fConst0)));
+		iConst36 = int(std::min<float>(fConst1, std::max<float>(0.0f, 1.7837549e-06f * fConst0)));
+		iConst37 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.0015690706f * fConst0)));
+		iConst38 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.0017973173f * fConst0)));
+		iConst39 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.00012707892f * fConst0)));
+		iConst40 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.0008844303f * fConst0)));
+		iConst41 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.0006563054f * fConst0)));
+		iConst42 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.00028294034f * fConst0)));
+		iConst43 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.00042833516f * fConst0)));
+		iConst44 = int(std::min<float>(fConst1, std::max<float>(0.0f, 0.00020097956f * fConst0)));
 	}
 	
 	virtual void instanceResetUserInterface() {
+		fHslider0 = FAUSTFLOAT(0.0f);
+		fHslider1 = FAUSTFLOAT(0.0f);
 	}
 	
 	virtual void instanceClear() {
+		IOTA0 = 0;
+		for (int l0 = 0; l0 < 1024; l0 = l0 + 1) {
+			fVec0[l0] = 0.0f;
+		}
+		for (int l1 = 0; l1 < 128; l1 = l1 + 1) {
+			fVec1[l1] = 0.0f;
+		}
+		for (int l2 = 0; l2 < 32; l2 = l2 + 1) {
+			fVec2[l2] = 0.0f;
+		}
+		for (int l3 = 0; l3 < 128; l3 = l3 + 1) {
+			fVec3[l3] = 0.0f;
+		}
+		for (int l4 = 0; l4 < 1024; l4 = l4 + 1) {
+			fVec4[l4] = 0.0f;
+		}
 	}
 	
 	virtual void init(int sample_rate) {
@@ -9877,7 +10008,9 @@ class mydsp : public dsp {
 	}
 	
 	virtual void buildUserInterface(UI* ui_interface) {
-		ui_interface->openVerticalBox("PassThrough");
+		ui_interface->openVerticalBox("WFS");
+		ui_interface->addHorizontalSlider("pos0", &fHslider0, FAUSTFLOAT(0.0f), FAUSTFLOAT(0.0f), FAUSTFLOAT(4.0f), FAUSTFLOAT(1.0f));
+		ui_interface->addHorizontalSlider("pos1", &fHslider1, FAUSTFLOAT(0.0f), FAUSTFLOAT(0.0f), FAUSTFLOAT(4.0f), FAUSTFLOAT(1.0f));
 		ui_interface->closeBox();
 	}
 	
@@ -9886,9 +10019,76 @@ class mydsp : public dsp {
 		FAUSTFLOAT* input1 = inputs[1];
 		FAUSTFLOAT* output0 = outputs[0];
 		FAUSTFLOAT* output1 = outputs[1];
+		FAUSTFLOAT* output2 = outputs[2];
+		FAUSTFLOAT* output3 = outputs[3];
+		FAUSTFLOAT* output4 = outputs[4];
+		FAUSTFLOAT* output5 = outputs[5];
+		FAUSTFLOAT* output6 = outputs[6];
+		FAUSTFLOAT* output7 = outputs[7];
+		FAUSTFLOAT* output8 = outputs[8];
+		FAUSTFLOAT* output9 = outputs[9];
+		FAUSTFLOAT* output10 = outputs[10];
+		FAUSTFLOAT* output11 = outputs[11];
+		FAUSTFLOAT* output12 = outputs[12];
+		FAUSTFLOAT* output13 = outputs[13];
+		FAUSTFLOAT* output14 = outputs[14];
+		FAUSTFLOAT* output15 = outputs[15];
+		int iSlow0 = int(float(fHslider0));
+		int iSlow1 = iSlow0 == 4;
+		int iSlow2 = int(float(fHslider1));
+		int iSlow3 = iSlow2 == 4;
+		int iSlow4 = iSlow0 == 3;
+		int iSlow5 = iSlow2 == 3;
+		int iSlow6 = iSlow0 == 2;
+		int iSlow7 = iSlow2 == 2;
+		int iSlow8 = iSlow0 == 1;
+		int iSlow9 = iSlow2 == 1;
+		int iSlow10 = iSlow0 == 0;
+		int iSlow11 = iSlow2 == 0;
 		for (int i0 = 0; i0 < count; i0 = i0 + 1) {
-			output0[i0] = FAUSTFLOAT(float(input0[i0]));
-			output1[i0] = FAUSTFLOAT(float(input1[i0]));
+			float fTemp0 = float(input0[i0]);
+			float fTemp1 = float(input1[i0]);
+			float fTemp2 = ((iSlow3) ? fTemp1 : 0.0f) + ((iSlow1) ? fTemp0 : 0.0f);
+			fVec0[IOTA0 & 1023] = fTemp2;
+			float fTemp3 = ((iSlow5) ? fTemp1 : 0.0f) + ((iSlow4) ? fTemp0 : 0.0f);
+			fVec1[IOTA0 & 127] = fTemp3;
+			float fTemp4 = ((iSlow7) ? fTemp1 : 0.0f) + ((iSlow6) ? fTemp0 : 0.0f);
+			fVec2[IOTA0 & 31] = fTemp4;
+			float fTemp5 = ((iSlow9) ? fTemp1 : 0.0f) + ((iSlow8) ? fTemp0 : 0.0f);
+			fVec3[IOTA0 & 127] = fTemp5;
+			float fTemp6 = fVec3[(IOTA0 - iConst5) & 127];
+			float fTemp7 = ((iSlow11) ? fTemp1 : 0.0f) + ((iSlow10) ? fTemp0 : 0.0f);
+			fVec4[IOTA0 & 1023] = fTemp7;
+			output0[i0] = FAUSTFLOAT(fVec4[(IOTA0 - iConst6) & 1023] + fTemp6 + fVec2[(IOTA0 - iConst4) & 31] + fVec1[(IOTA0 - iConst3) & 127] + fVec0[(IOTA0 - iConst2) & 1023]);
+			float fTemp8 = fVec2[(IOTA0 - iConst9) & 31];
+			float fTemp9 = fVec3[(IOTA0 - iConst10) & 127];
+			output1[i0] = FAUSTFLOAT(fVec4[(IOTA0 - iConst11) & 1023] + fTemp9 + fTemp8 + fVec1[(IOTA0 - iConst8) & 127] + fVec0[(IOTA0 - iConst7) & 1023]);
+			float fTemp10 = fVec2[(IOTA0 - iConst14) & 31];
+			float fTemp11 = fVec3[(IOTA0 - iConst15) & 127];
+			output2[i0] = FAUSTFLOAT(fVec4[(IOTA0 - iConst16) & 1023] + fTemp11 + fTemp10 + fVec1[(IOTA0 - iConst13) & 127] + fVec0[(IOTA0 - iConst12) & 1023]);
+			float fTemp12 = fVec2[(IOTA0 - iConst19) & 31];
+			float fTemp13 = fVec3[(IOTA0 - iConst20) & 127];
+			output3[i0] = FAUSTFLOAT(fVec4[(IOTA0 - iConst21) & 1023] + fTemp13 + fTemp12 + fVec1[(IOTA0 - iConst18) & 127] + fVec0[(IOTA0 - iConst17) & 1023]);
+			float fTemp14 = fVec2[(IOTA0 - iConst24) & 31];
+			output4[i0] = FAUSTFLOAT(fVec4[(IOTA0 - iConst25) & 1023] + fVec3[(IOTA0 - iConst6) & 127] + fTemp14 + fVec1[(IOTA0 - iConst23) & 127] + fVec0[(IOTA0 - iConst22) & 1023]);
+			float fTemp15 = fVec2[(IOTA0 - iConst28) & 31];
+			output5[i0] = FAUSTFLOAT(fTemp13 + fVec4[(IOTA0 - iConst29) & 1023] + fTemp15 + fVec1[(IOTA0 - iConst27) & 127] + fVec0[(IOTA0 - iConst26) & 1023]);
+			float fTemp16 = fVec2[(IOTA0 - iConst32) & 31];
+			output6[i0] = FAUSTFLOAT(fTemp11 + fVec4[(IOTA0 - iConst33) & 1023] + fTemp16 + fVec1[(IOTA0 - iConst31) & 127] + fVec0[(IOTA0 - iConst30) & 1023]);
+			float fTemp17 = fVec2[(IOTA0 - iConst36) & 31];
+			output7[i0] = FAUSTFLOAT(fTemp9 + fVec4[(IOTA0 - iConst37) & 1023] + fTemp17 + fVec1[(IOTA0 - iConst35) & 127] + fVec0[(IOTA0 - iConst34) & 1023]);
+			output8[i0] = FAUSTFLOAT(fTemp6 + fVec4[(IOTA0 - iConst38) & 1023] + fVec2[(IOTA0 - iConst6) & 31] + fVec1[(IOTA0 - iConst5) & 127] + fVec0[(IOTA0 - iConst38) & 1023]);
+			float fTemp18 = fVec1[(IOTA0 - iConst10) & 127];
+			output9[i0] = FAUSTFLOAT(fVec3[(IOTA0 - iConst35) & 127] + fTemp17 + fVec4[(IOTA0 - iConst34) & 1023] + fTemp18 + fVec0[(IOTA0 - iConst37) & 1023]);
+			float fTemp19 = fVec1[(IOTA0 - iConst15) & 127];
+			output10[i0] = FAUSTFLOAT(fVec3[(IOTA0 - iConst39) & 127] + fTemp16 + fVec4[(IOTA0 - iConst30) & 1023] + fTemp19 + fVec0[(IOTA0 - iConst33) & 1023]);
+			float fTemp20 = fVec1[(IOTA0 - iConst20) & 127];
+			output11[i0] = FAUSTFLOAT(fVec3[(IOTA0 - iConst27) & 127] + fTemp15 + fVec4[(IOTA0 - iConst26) & 1023] + fTemp20 + fVec0[(IOTA0 - iConst29) & 1023]);
+			output12[i0] = FAUSTFLOAT(fVec3[(IOTA0 - iConst23) & 127] + fTemp14 + fVec4[(IOTA0 - iConst22) & 1023] + fVec1[(IOTA0 - iConst6) & 127] + fVec0[(IOTA0 - iConst40) & 1023]);
+			output13[i0] = FAUSTFLOAT(fVec3[(IOTA0 - iConst42) & 127] + fVec4[(IOTA0 - iConst17) & 1023] + fTemp12 + fTemp20 + fVec0[(IOTA0 - iConst41) & 1023]);
+			output14[i0] = FAUSTFLOAT(fVec3[(IOTA0 - iConst13) & 127] + fVec4[(IOTA0 - iConst12) & 1023] + fTemp10 + fTemp19 + fVec0[(IOTA0 - iConst43) & 1023]);
+			output15[i0] = FAUSTFLOAT(fVec3[(IOTA0 - iConst8) & 127] + fVec4[(IOTA0 - iConst7) & 1023] + fTemp8 + fTemp18 + fVec0[(IOTA0 - iConst44) & 1023]);
+			IOTA0 = IOTA0 + 1;
 		}
 	}
 
@@ -9896,16 +10096,20 @@ class mydsp : public dsp {
 
 #ifdef FAUST_UIMACROS
 	
-	#define FAUST_FILE_NAME "PassThrough.dsp"
+	#define FAUST_FILE_NAME "WFS.dsp"
 	#define FAUST_CLASS_NAME "mydsp"
 	#define FAUST_COMPILATION_OPIONS "-a /usr/local/share/faust/teensy/teensy.cpp -lang cpp -i -es 1 -mcd 16 -uim -single -ftz 0"
 	#define FAUST_INPUTS 2
-	#define FAUST_OUTPUTS 2
-	#define FAUST_ACTIVES 0
+	#define FAUST_OUTPUTS 16
+	#define FAUST_ACTIVES 2
 	#define FAUST_PASSIVES 0
 
+	FAUST_ADDHORIZONTALSLIDER("pos0", fHslider0, 0.0f, 0.0f, 4.0f, 1.0f);
+	FAUST_ADDHORIZONTALSLIDER("pos1", fHslider1, 0.0f, 0.0f, 4.0f, 1.0f);
 
 	#define FAUST_LIST_ACTIVES(p) \
+		p(HORIZONTALSLIDER, pos0, "pos0", fHslider0, 0.0f, 0.0f, 4.0f, 1.0f) \
+		p(HORIZONTALSLIDER, pos1, "pos1", fHslider1, 0.0f, 0.0f, 4.0f, 1.0f) \
 
 	#define FAUST_LIST_PASSIVES(p) \
 
@@ -9915,8 +10119,8 @@ class mydsp : public dsp {
 
 /*******************BEGIN ARCHITECTURE SECTION (part 2/2)***************/
 
-#define MULT_16 2147483647
-#define DIV_16 4.6566129e-10
+#define MULT_16 32767
+#define DIV_16 0.0000305185
 
 unsigned __exidx_start;
 unsigned __exidx_end;
@@ -9926,7 +10130,7 @@ std::list<GUI*> GUI::fGuiList;
 ztimedmap GUI::gTimedZoneMap;
 #endif
 
-PassThrough::PassThrough() : AudioStream(FAUST_INPUTS, new audio_block_t*[FAUST_INPUTS])
+WFS::WFS() : AudioStream(FAUST_INPUTS, new audio_block_t*[FAUST_INPUTS])
 {
 #ifdef NVOICES
     int nvoices = NVOICES;
@@ -9968,7 +10172,7 @@ PassThrough::PassThrough() : AudioStream(FAUST_INPUTS, new audio_block_t*[FAUST_
 #endif
 }
 
-PassThrough::~PassThrough()
+WFS::~WFS()
 {
     delete fDSP;
     delete fUI;
@@ -9987,7 +10191,7 @@ PassThrough::~PassThrough()
 }
 
 template <int INPUTS, int OUTPUTS>
-void PassThrough::updateImp(void)
+void WFS::updateImp(void)
 {
 #if MIDICTRL
     // Process the MIDI messages received by the Teensy
@@ -10002,7 +10206,7 @@ void PassThrough::updateImp(void)
             inBlock[channel] = receiveReadOnly(channel);
             if (inBlock[channel]) {
                 for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
-                    int32_t val = inBlock[channel]->data[i] << 16;
+                    int16_t val = inBlock[channel]->data[i];
                     fInChannel[channel][i] = val*DIV_16;
                 }
                 release(inBlock[channel]);
@@ -10014,13 +10218,13 @@ void PassThrough::updateImp(void)
     
     fDSP->compute(AUDIO_BLOCK_SAMPLES, fInChannel, fOutChannel);
     
+    audio_block_t* outBlock[OUTPUTS];
     for (int channel = 0; channel < OUTPUTS; channel++) {
-        audio_block_t* outBlock[OUTPUTS];
         outBlock[channel] = allocate();
         if (outBlock[channel]) {
             for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
-                int32_t val = fOutChannel[channel][i]*MULT_16;
-                outBlock[channel]->data[i] = val >> 16;
+                int16_t val = fOutChannel[channel][i]*MULT_16;
+                outBlock[channel]->data[i] = val;
             }
             transmit(outBlock[channel], channel);
             release(outBlock[channel]);
@@ -10028,14 +10232,14 @@ void PassThrough::updateImp(void)
     }
 }
 
-void PassThrough::update(void) { updateImp<FAUST_INPUTS, FAUST_OUTPUTS>(); }
+void WFS::update(void) { updateImp<FAUST_INPUTS, FAUST_OUTPUTS>(); }
 
-void PassThrough::setParamValue(const std::string& path, float value)
+void WFS::setParamValue(const std::string& path, float value)
 {
     fUI->setParamValue(path, value);
 }
 
-float PassThrough::getParamValue(const std::string& path)
+float WFS::getParamValue(const std::string& path)
 {
     return fUI->getParamValue(path);
 }
