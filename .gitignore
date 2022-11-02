@@ -4,5 +4,6 @@ build/
 cmake-build-*/
 .idea/
 CMakeLists.txt
+!wfs-controller/CMakeLists.txt
 .vscode/
 *.zip

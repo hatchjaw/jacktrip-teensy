@@ -130,19 +130,14 @@ void receiveOSC() {
         bundleIn.fill(buffer, size);
         if (!bundleIn.hasError() && bundleIn.size() > 0) {
 //            Serial.printf("OSCBundle::size: %d\n", bundleIn.size());
-            bundleIn.route("/track", [](OSCMessage &msg, int addrOffset) {
-                char address[64];
-                msg.getAddress(address);
-//                Serial.println(address);
-            });
 
             bundleIn.route("/wfs/pos", [](OSCMessage &msg, int addrOffset) {
                 // Get the input index (last character of the address)
                 char address[10], path[20];
                 msg.getAddress(address, addrOffset + 1);
                 snprintf(path, sizeof path, "pos%s", address);
-                auto pos = msg.getInt(0);
-                Serial.printf("Setting \"%s\": %d\n", path, pos);
+                auto pos = msg.getFloat(0);
+                Serial.printf("Setting \"%s\": %f\n", path, pos);
                 wfs.setParamValue(path, pos);
             });
         } else {
@@ -150,19 +145,14 @@ void receiveOSC() {
             messageIn.fill(buffer, size);
             if (!messageIn.hasError() && messageIn.size() > 0) {
 //                Serial.printf("OSCMessage::size: %d\n", messageIn.size());
-                messageIn.route("/track", [](OSCMessage &msg, int addrOffset) {
-                    char address[64];
-                    msg.getAddress(address);
-//                    Serial.println(address);
-                });
 
                 messageIn.route("/wfs/pos", [](OSCMessage &msg, int addrOffset) {
                     // Get the input index (last character of the address)
                     char address[10], path[20];
                     msg.getAddress(address, addrOffset + 1);
                     snprintf(path, sizeof path, "pos%s", address);
-                    auto pos = msg.getInt(0);
-                    Serial.printf("Setting \"%s\": %d\n", path, pos);
+                    auto pos = msg.getFloat(0);
+                    Serial.printf("Setting \"%s\": %f\n", path, pos);
                     wfs.setParamValue(path, pos);
                 });
             }
