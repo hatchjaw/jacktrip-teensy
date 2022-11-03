@@ -98,7 +98,7 @@ multiple Teensies.
 
 The wired connection on the machine running the JackTrip server should be
 set to manual IPv4 mode (i.e. DHCP disabled), with **subnet mask** 
-`255.255.255.0`, **address** matching `serverIP` as specified in `main.cpp`, 
+`255.255.255.0`, **address** matching `jackTripServerIP` as specified in `main.cpp`, 
 and **gateway** `x.x.x.1` (where `x` are the first three octets of **address**).
 
 If in doubt, try:
@@ -174,16 +174,18 @@ to `true`._
 
 ## Control via OSC
 
-Using [oscsend](https://fukuchi.org/works/oscsend/index.html.en):
+~~Using [oscsend](https://fukuchi.org/works/oscsend/index.html.en):~~
 
 ```shell
 oscsend osc.udp://[teensy IP]:[OSC UDP port] /wfs/pos/[n] i [pos]
 ```
 
-Or set up Reaper to send OSC messages, and create a custom .ReaperOSC config 
-file (-see `~/.config/REAPER/OSC`)
+~~Or set up Reaper to send OSC messages, and create a custom .ReaperOSC config 
+file (-see `~/.config/REAPER/OSC`)~~
 
-_to be continued..._
+`oscsend` doesn't expose a way to specify the IP of the local network interface,
+so it's no good for multicast. Instead, use the app in directory 
+`wfs-controller`.
 
 ## Notes
 

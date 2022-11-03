@@ -4,11 +4,12 @@
 
 #include "JackTripClient.h"
 
-JackTripClient::JackTripClient(IPAddress &serverIpAddress) :
+JackTripClient::JackTripClient(IPAddress &serverIpAddress, uint16_t serverTcpPort) :
         AudioStream(2, inputQueueArray),
-        clientIP(serverIpAddress), // Assume client and server on same subnet
-        serverIP(serverIpAddress),
-        timer(TeensyTimerTool::TCK),
+        clientIP(serverIpAddress),
+        serverIP(serverIpAddress), // Assume client and server on same subnet
+        serverTcpPort(serverTcpPort),
+        timer(TeensyTimerTool::GPT1),
         udpBuffer(UDP_PACKET_SIZE * 64) // This won't help. Write will eventually catch up with read.
 {
     // Generate a MAC address (from the program-once area of Teensy's flash
@@ -33,7 +34,7 @@ uint8_t JackTripClient::begin(uint16_t port) {
     }
 
     Serial.print("JackTripClient: IP is ");
-    Serial.println(Ethernet.localIP());
+    Serial.println(EthernetClass::localIP());
 
     Serial.printf("JackTripClient: Packet size is %d bytes\n", UDP_PACKET_SIZE);
 
@@ -43,10 +44,10 @@ uint8_t JackTripClient::begin(uint16_t port) {
 }
 
 EthernetLinkStatus JackTripClient::startEthernet() {
-    Ethernet.setSocketNum(4);
+//    EthernetClass::setSocketNum(4);
 
     if (UDP_PACKET_SIZE > FNET_SOCKET_DEFAULT_SIZE) {
-        Ethernet.setSocketSize(UDP_PACKET_SIZE);
+        EthernetClass::setSocketSize(UDP_PACKET_SIZE);
     }
 
     Serial.print("JackTripClient: MAC address is: ");
@@ -55,30 +56,15 @@ EthernetLinkStatus JackTripClient::startEthernet() {
     }
     Serial.println();
 
-#ifdef CONF_DHCP
-    bool dhcpFailed = false;
-    // Start ethernet
-    if (!Ethernet.begin(clientMAC)) {
-        dhcpFailed = true;
-    }
-#else
-    Ethernet.begin(clientMAC, clientIP);
-#endif
+    EthernetClass::begin(clientMAC, clientIP);
 
-    if (Ethernet.linkStatus() != LinkON) {
+    if (EthernetClass::linkStatus() != LinkON) {
         Serial.println("JackTripClient: Ethernet cable is not connected.");
     } else {
         Serial.println("JackTripClient: Ethernet connected.");
     }
 
-#ifdef CONF_DHCP
-    if (dhcpFailed) {
-        Serial.println("JackTripClient: DHCP configuration failed");
-        return Unknown;
-    }
-#endif
-
-    return Ethernet.linkStatus();
+    return EthernetClass::linkStatus();
 }
 
 bool JackTripClient::connect(uint16_t timeout) {
@@ -90,19 +76,18 @@ bool JackTripClient::connect(uint16_t timeout) {
     // Attempt TCP handshake with JackTrip server.
     Serial.print("JackTripClient: Connecting to JackTrip server at ");
     Serial.print(serverIP);
-    Serial.printf(":%d... ", REMOTE_TCP_PORT);
+    Serial.printf(":%d... ", serverTcpPort);
 
     EthernetClient c = EthernetClient();
     c.setConnectionTimeout(timeout);
-    if (c.connect(serverIP, REMOTE_TCP_PORT)) {
+    if (c.connect(serverIP, serverTcpPort)) {
         Serial.println("Succeeded!");
     } else {
         Serial.println();
         return false;
     }
 
-    // Apparently just sending the local UDP port yields the remote UDP port
-    // in return...
+    // Sending the local UDP port yields the remote UDP port in return.
     auto port = localPort();
     // Send the local port (little endian).
     if (4 != c.write((const uint8_t *) &port, 4)) {

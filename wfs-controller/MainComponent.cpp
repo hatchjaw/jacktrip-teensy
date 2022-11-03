@@ -30,7 +30,13 @@ MainComponent::MainComponent() {
     settingsButton.setButtonText("Settings");
     settingsButton.onClick = [this] { showSettings(); };
 
-    osc.connect("192.168.10.182", 5510);
+    // Send OSC messages over UDP multicast.
+    auto socket = new DatagramSocket;
+    // Got to bind to the local address of the appropriate network interface.
+    // TODO: make these specifiable via the UI
+    socket->bindToPort(8888, "192.168.10.10");
+    // TODO: also make multicast IP and port specifiable via the UI.
+    osc.connectToSocket(*socket, "230.0.0.20", 41814);
 }
 
 //==============================================================================
@@ -86,6 +92,7 @@ void MainComponent::showSettings() {
 }
 
 MainComponent::~MainComponent() {
+    osc.disconnect();
     shutdownAudio();
 }
 

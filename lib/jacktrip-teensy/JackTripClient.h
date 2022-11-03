@@ -23,7 +23,7 @@
  */
 class JackTripClient : public AudioStream, EthernetUDP {
 public:
-    JackTripClient(IPAddress &serverIpAddress);
+    explicit JackTripClient(IPAddress &serverIpAddress, uint16_t serverTcpPort = 4464);
 
     /**
      * Set up the client.
@@ -45,7 +45,8 @@ public:
 
 private:
     static constexpr uint8_t NUM_CHANNELS{2};
-    static constexpr uint16_t UDP_PACKET_SIZE{PACKET_HEADER_SIZE + NUM_CHANNELS * AUDIO_BLOCK_SAMPLES * sizeof(uint16_t)};
+    static constexpr uint16_t UDP_PACKET_SIZE{
+            PACKET_HEADER_SIZE + NUM_CHANNELS * AUDIO_BLOCK_SAMPLES * sizeof(uint16_t)};
     static constexpr uint32_t RECEIVE_TIMEOUT_MS{5000};
     static constexpr uint32_t DIAGNOSTIC_PRINT_INTERVAL{5000};
     static constexpr uint16_t AUDIO_BUFFER_SIZE{AUDIO_BLOCK_SAMPLES * NUM_CHANNELS * 2};
@@ -53,11 +54,6 @@ private:
      * Size in bytes of one channel's worth of samples.
      */
     static constexpr uint8_t CHANNEL_FRAME_SIZE{AUDIO_BLOCK_SAMPLES * sizeof(uint16_t)};
-
-    /**
-     * Remote server tcp port for initial handshake.
-     */
-    const uint16_t REMOTE_TCP_PORT{4464};
     /**
      * Size, in bytes, of JackTrip's exit packet
      */
@@ -113,9 +109,12 @@ private:
      * IP of the jacktrip server.
      */
     IPAddress serverIP;
-
     /**
-     * UDP port of the jacktrip server.
+     * JackTrip server TCP port for initial handshake.
+     */
+    uint16_t serverTcpPort;
+    /**
+     * JackTrip server UDP port.
      */
     uint32_t serverUdpPort{0};
 

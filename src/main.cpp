@@ -5,7 +5,7 @@
 #include "WFS/WFS.h"
 
 // Define this to wait for a serial connection before proceeding with execution
-//#define WAIT_FOR_SERIAL
+#define WAIT_FOR_SERIAL
 
 // Define this to try to set clientIP via dhcp (otherwise configure manually)
 //#define CONF_DHCP
@@ -19,17 +19,18 @@
 
 // Local udp port on which to receive packets.
 const uint16_t LOCAL_UDP_PORT = 8888;
-// Remote server clientIP address -- should match address in IPv4 settings.
-IPAddress serverIP{192, 168, 10, 10};
-
-const uint16_t OSC_PORT = 5510;
+// Remote server IP address -- should match address in IPv4 settings.
+IPAddress jackTripServerIP{192, 168, 10, 10};
+// Parameters for OSC over UDP multicast.
+IPAddress oscMulticastIP{230, 0, 0, 20};
+const uint16_t OSC_MULTICAST_PORT{41814};
 
 //region Audio system objects
 // Audio shield driver
 AudioControlSGTL5000 audioShield;
 AudioOutputI2S out;
 
-JackTripClient jtc{serverIP};
+JackTripClient jtc{jackTripServerIP};
 
 EthernetUDP udp;
 
@@ -82,7 +83,7 @@ void setup() {
         WAIT_INFINITE()
     }
 
-    if (!udp.begin(OSC_PORT)) {
+    if (1 != udp.beginMulticast(oscMulticastIP, OSC_MULTICAST_PORT)) {
         Serial.println("Failed to start listening for OSC messages.");
         WAIT_INFINITE()
     }
@@ -100,6 +101,8 @@ void loop() {
             AudioMemoryUsageMaxReset();
         }
     } else {
+        receiveOSC();
+
         if (performanceReport > PERF_REPORT_INTERVAL) {
             Serial.printf("Audio memory in use: %d blocks; processor %f %%\n",
                           AudioMemoryUsage(),
@@ -107,15 +110,13 @@ void loop() {
             performanceReport = 0;
         }
     }
-
-    receiveOSC();
 }
 
 /**
  * Expects messages of the form
- * `oscsend osc.udp://192.168.10.[n]:[OSC_PORT] /wfs/pos/[p] i [pos]
+ * `oscsend osc.udp://[OSC IP]:[OSC port] /wfs/pos/[p] i [pos]
  * see `man oscsend`, or set up OSC control in Reaper and send to this Teensy's
- * IP and OSC UDP port.
+ * IP and OSC UDP port. Or use the dedicated WFS control app.
  */
 void receiveOSC() {
     OSCBundle bundleIn;
@@ -157,31 +158,6 @@ void receiveOSC() {
                 });
             }
         }
-
-//        while (size--) {
-//            oscIn.fill(udp.read());
-//        }
-
-//        if (!oscIn.hasError()) {
-//            Serial.printf("OSCBundle::size: %d\n", oscIn.size());
-//            oscIn.route("/track", [](OSCMessage &msg, int addrOffset) {
-//                char address[64];
-//                msg.getAddress(address);
-//                Serial.println(address);
-//            });
-//
-//            oscIn.route("/wfs/pos", [](OSCMessage &msg, int addrOffset) {
-//                // Get the input index (last character of the address)
-//                char address[10], path[20];
-//                msg.getAddress(address, addrOffset+1);
-//                snprintf(path, sizeof path, "pos%s", address);
-//                auto pos = msg.getInt(0);
-//                Serial.printf("Setting \"%s\": %d\n", path, pos);
-//                wfs.setParamValue(path, pos);
-//            });
-//        } else {
-//            Serial.printf("OSC reported an error with code %d\n", oscIn.getError());
-//        }
     }
 }
 
