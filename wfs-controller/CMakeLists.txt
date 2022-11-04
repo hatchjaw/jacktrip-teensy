@@ -22,6 +22,8 @@ project(WFS_CONTROLLER VERSION 0.0.1)
 # included JUCE directly in your source tree (perhaps as a submodule), you'll need to tell CMake to
 # include that subdirectory as part of the build.
 
+# cmake flag -DJUCE_INSTALL_PATH="/path/to/JUCE/install"
+list(APPEND CMAKE_PREFIX_PATH ${JUCE_INSTALL_PATH})
 find_package(JUCE CONFIG REQUIRED)        # If you've installed JUCE to your system
 # or
 # add_subdirectory(JUCE)                    # If you've put JUCE in a subdirectory called JUCE
@@ -94,7 +96,6 @@ target_compile_definitions(WfsController
 
 target_link_libraries(WfsController
         PRIVATE
-        # GuiAppData            # If we'd created a binary data target, we'd link to it here
         juce::juce_gui_extra
         juce::juce_audio_utils
         juce::juce_osc

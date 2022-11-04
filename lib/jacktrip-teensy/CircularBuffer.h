@@ -5,8 +5,7 @@
 #ifndef JACKTRIP_TEENSY_CIRCULARBUFFER_H
 #define JACKTRIP_TEENSY_CIRCULARBUFFER_H
 
-
-#include <cstdint>
+#include <Arduino.h>
 
 template<typename T>
 class CircularBuffer {
@@ -25,10 +24,15 @@ public:
 
     void clear();
 
+    void printStats();
+
 private:
+    const int STAT_INTERVAL{500};
     uint16_t length;
     T *buffer;
     uint16_t writeIndex{0}, readIndex{0};
+    int32_t numReads{0}, numWrites{0};
+    elapsedMillis statTimer;
 };
 
 template

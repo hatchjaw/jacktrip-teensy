@@ -6,17 +6,6 @@ if ! command -v tycmd &>/dev/null; then
   exit 1
 fi
 
-# Build
-cd "$(dirname "$(realpath "$0")")"/.. || exit 1
-pio run
-if [ $? -eq 1 ]; then
-    exit 1
-fi
-
-cd .pio/build/teensy41 || exit 1
-
-echo -e "\nLooking for Teensies to upload to."
-
 # Query all connected Teensies
 teensies=($(tycmd list | grep -Eo "[0-9]+-Teensy"))
 
@@ -24,10 +13,9 @@ teensies=($(tycmd list | grep -Eo "[0-9]+-Teensy"))
 if ((${#teensies[@]} == 0)); then
   echo "No Teensies found."
 else
-  echo "Teensies found: ${#teensies[@]}"
   for i in "${!teensies[@]}"; do
-    echo "Uploading to Teensy $((i + 1)) of ${#teensies[@]}."
-    tycmd upload firmware.hex -B "${teensies[$i]}"
+    echo "Rebooting Teensy $((i + 1)) of ${#teensies[@]}."
+    tycmd reset -B "${teensies[$i]}"
   done
   echo "Done!"
 fi

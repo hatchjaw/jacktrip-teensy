@@ -1,8 +1,11 @@
 set(CMAKE_PROJECT_VERSION 0.0.2)
 
-#set(CMAKE_PREFIX_PATH "/usr/lib/x86_64-linux-gnu/cmake")
-#add_subdirectory(jacktrip)
+if (NOT CMAKE_BUILD_TYPE MATCHES "teensy41")
+    set(CMAKE_SYSTEM_NAME "Linux")
+    unset(CMAKE_C_COMPILER)
+    unset(CMAKE_CXX_COMPILER)
+    unset(CMAKE_CXX_FLAGS)
+    unset(CMAKE_C_FLAGS)
 
-#if (NOT CMAKE_BUILD_TYPE STREQUAL "teensy41")
-#    include(wfs-controller/CMakeLists.txt)
-#endif ()
+    add_subdirectory(wfs-controller)
+endif ()

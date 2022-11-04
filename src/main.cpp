@@ -7,12 +7,8 @@
 // Define this to wait for a serial connection before proceeding with execution
 #define WAIT_FOR_SERIAL
 
-// Define this to try to set clientIP via dhcp (otherwise configure manually)
-//#define CONF_DHCP
-
-//#ifndef CLIENT_IP_LAST_BYTE
-//#define CLIENT_IP_LAST_BYTE 0x10
-//#endif
+// Define this to print packet stats.
+#define SHOW_STATS
 
 // Shorthand to block and do nothing
 #define WAIT_INFINITE() while (true) yield();
@@ -76,6 +72,12 @@ void receiveOSC();
 void setup() {
 #ifdef WAIT_FOR_SERIAL
     while (!Serial);
+#endif
+
+    Serial.printf("Sampling rate: %f\n", AUDIO_SAMPLE_RATE_EXACT);
+
+#ifdef SHOW_STATS
+    jtc.setShowStats(true, 5'000);
 #endif
 
     if (!jtc.begin(LOCAL_UDP_PORT)) {

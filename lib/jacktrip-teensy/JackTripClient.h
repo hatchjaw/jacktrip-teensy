@@ -11,10 +11,9 @@
 #include <TeensyTimerTool.h>
 #include "PacketHeader.h"
 #include "CircularBuffer.h"
+#include "PacketStats.h"
 
-#undef CONF_DHCP
-
-#define DO_DIAGNOSTICS
+//#define USE_TIMER
 
 /**
  * Inputs: signals produced by other audio components, to be sent to peers over
@@ -43,17 +42,18 @@ public:
 
     void stop() override;
 
+    void setShowStats(bool show, uint16_t intervalMS = 1'000);
+
 private:
     static constexpr uint8_t NUM_CHANNELS{2};
     static constexpr uint16_t UDP_PACKET_SIZE{
             PACKET_HEADER_SIZE + NUM_CHANNELS * AUDIO_BLOCK_SAMPLES * sizeof(uint16_t)};
     static constexpr uint32_t RECEIVE_TIMEOUT_MS{5000};
-    static constexpr uint32_t DIAGNOSTIC_PRINT_INTERVAL{5000};
     static constexpr uint16_t AUDIO_BUFFER_SIZE{AUDIO_BLOCK_SAMPLES * NUM_CHANNELS * 2};
     /**
      * Size in bytes of one channel's worth of samples.
      */
-    static constexpr uint8_t CHANNEL_FRAME_SIZE{AUDIO_BLOCK_SAMPLES * sizeof(uint16_t)};
+    static constexpr uint16_t CHANNEL_FRAME_SIZE{AUDIO_BLOCK_SAMPLES * sizeof(uint16_t)};
     /**
      * Size, in bytes, of JackTrip's exit packet
      */
@@ -144,20 +144,21 @@ private:
             NUM_CHANNELS
     };
 
-    bool awaitingFirstPacket{true};
-    bool doInitialDiagnostic{false};
-    int initialDiagnosticCounter{0};
-    elapsedMillis diagnosticElapsed{0};
     elapsedMicros packetInterval{0};
     JackTripPacketHeader prevServerHeader{};
     JackTripPacketHeader *serverHeader;
 
     TeensyTimerTool::PeriodicTimer timer;
 
-    void timerCallback();
+//    void timerCallback();
 
     CircularBuffer<uint8_t> udpBuffer;
 //    CircularBuffer<int16_t> audioBuffer;
+
+    PacketStats packetStats;
+    bool showStats{false};
+
+    void updateImpl();
 };
 
 

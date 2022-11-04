@@ -31,6 +31,22 @@ void CircularBuffer<T>::clear() {
     for (int i = 0; i < length; ++i) {
         buffer[i] = 0;
     }
+    readIndex = 0;
+    writeIndex = 0;
+    numReads = 0;
+    numWrites = 0;
+}
+
+template<typename T>
+void CircularBuffer<T>::printStats() {
+    if (statTimer > STAT_INTERVAL) {
+        Serial.printf("CircularBuffer: writes %d %s reads %d, delta %d\n",
+                      numWrites,
+                      (numWrites > numReads ? ">" : (numWrites < numReads ? "<" : "==")),
+                      numReads,
+                      numWrites - numReads);
+        statTimer = 0;
+    }
 }
 
 template<typename T>
@@ -39,8 +55,14 @@ void CircularBuffer<T>::write(const T *data, uint16_t len) {
         if (writeIndex == length) {
             writeIndex = 0;
         }
+        if (writeIndex == readIndex) {
+            Serial.printf("WARN: Overwriting elements not yet read; writeIndex = %" PRIu16 " (i = %d)\n",
+                          writeIndex, i);
+        }
         buffer[writeIndex] = data[i];
     }
+
+    ++numWrites;
 }
 
 template<typename T>
@@ -51,4 +73,6 @@ void CircularBuffer<T>::read(T *bufferToFill, uint16_t len) {
         }
         bufferToFill[i] = buffer[readIndex];
     }
+
+    ++numReads;
 }

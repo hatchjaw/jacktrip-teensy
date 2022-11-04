@@ -30,8 +30,8 @@ MainComponent::MainComponent() {
     settingsButton.setButtonText("Settings");
     settingsButton.onClick = [this] { showSettings(); };
 
-    // Send OSC messages over UDP multicast.
-    auto socket = new DatagramSocket;
+    // Prepare to send OSC messages over UDP multicast.
+    socket = std::make_unique<DatagramSocket>();
     // Got to bind to the local address of the appropriate network interface.
     // TODO: make these specifiable via the UI
     socket->bindToPort(8888, "192.168.10.10");

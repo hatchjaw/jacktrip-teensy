@@ -3,7 +3,9 @@ CMakeListsPrivate.txt
 build/
 cmake-build-*/
 .idea/
+notes/
 CMakeLists.txt
+CMakeFiles
 !wfs-controller/CMakeLists.txt
 .vscode/
 *.zip
