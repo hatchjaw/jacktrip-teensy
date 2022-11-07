@@ -14,6 +14,7 @@
 #include "PacketStats.h"
 
 //#define USE_TIMER
+#define RECEIVE_CONDITION while
 
 /**
  * Inputs: signals produced by other audio components, to be sent to peers over
@@ -23,6 +24,8 @@
 class JackTripClient : public AudioStream, EthernetUDP {
 public:
     explicit JackTripClient(IPAddress &serverIpAddress, uint16_t serverTcpPort = 4464);
+
+    virtual ~JackTripClient();
 
     /**
      * Set up the client.
@@ -149,8 +152,6 @@ private:
     JackTripPacketHeader *serverHeader;
 
     TeensyTimerTool::PeriodicTimer timer;
-
-//    void timerCallback();
 
     CircularBuffer<uint8_t> udpBuffer;
 //    CircularBuffer<int16_t> audioBuffer;

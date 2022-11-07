@@ -21,6 +21,10 @@ JackTripClient::JackTripClient(IPAddress &serverIpAddress, uint16_t serverTcpPor
     serverHeader = new JackTripPacketHeader;
 }
 
+JackTripClient::~JackTripClient() {
+    delete serverHeader;
+}
+
 uint8_t JackTripClient::begin(uint16_t port) {
     if (!active) {
         Serial.println("JackTripClient is not connected to any Teensy audio objects.");
@@ -159,7 +163,7 @@ void JackTripClient::receivePackets() {
     int size;
 
     // Check for incoming UDP packets. Get as many packets as are available.
-    while ((size = parsePacket()) > 0) {
+    RECEIVE_CONDITION ((size = parsePacket()) > 0) {
         lastReceive = 0;
 
         if (size == EXIT_PACKET_SIZE && isExitPacket()) {
@@ -288,4 +292,3 @@ void JackTripClient::setShowStats(bool show, uint16_t intervalMS) {
     showStats = show;
     packetStats.setPrintInterval(intervalMS);
 }
-

@@ -1,15 +1,15 @@
 # Teensy as a JackTrip client
 
-## Hello
-
-This project is built with [PlatformIO](https://platformio.org). 
-Supported hardware: Teensy 4.1; a host machine running Ubuntu 20.04.
+This project uses [PlatformIO](https://platformio.org). 
+Supported hardware: Teensy 4.1.
 
 ```shell
 # Clone the repo
 git clone https://github.com/hatchjaw/jacktrip-teensy
-# Build the program and upload it to teensy
+# Build the program and upload it to a Teensy
 pio run (--upload-port /dev/ttyACM<n>)
+# or upload to all connected Teensies
+./scripts/upload.sh
 # ...and monitor serial output
 pio device monitor (-p /dev/ttyACM<n>)
 ```
@@ -52,6 +52,10 @@ card). Install Cadence as per the
 [instructions](https://github.com/falkTX/Cadence/blob/master/INSTALL.md);
 once installed, the tools _Catia_ and _Logs_ are very useful.
 
+### Teensy
+
+[TyTools](https://github.com/Koromix/tytools) are really useful for working with
+multiple Teensies.
 
 ### PlatformIO
 
@@ -60,17 +64,9 @@ Install platformIO's
 or [Teensy's](https://www.pjrc.com/teensy/loader_linux.html). 
 Both... shouldn't be a problem.
 
-[platformio.ini](platformio.ini) is configured to upload by default, not just build:
+`platformio.ini` defines `AUDIO_BLOCK_SAMPLES` which sets Teensy's audio block size.
 
-```ini
-[env]
-;...
-targets = upload
-```
-
-It also defines `AUDIO_BLOCK_SAMPLES` which sets Teensy's audio block size.
-
-It _also_ specifices that the GUI Teensy Loader should be used for uploading.
+It _also_ specifies that the GUI Teensy Loader should be used for uploading.
 The CLI version behaves weirdly; it tends to need two runs for the upload
 process to work. The GUI app seems to get the job done more reliably. You may, 
 however, see the following at the end of the output for `pio run`:
@@ -83,16 +79,8 @@ Hangup
 But relax; if Teensy Loader shows a "Programming" modal
 with a progress bar, all should be well.
 
-### Hardware
-
-Connect a computer running a JackTrip hub server to an ethernet switch.
-Teens(y|ies), running this program, with ethernet shield connected, should be 
-attached, by an ethernet cable, to the switch.
-
-### Teensy
-
-[TyTools](https://github.com/Koromix/tytools) are really useful for working with
-multiple Teensies.
+There's also a script, `scripts/upload.sh` that uses TyTools to automate
+building and uploading to multiple Teensies.
 
 ### Ethernet
 
@@ -109,6 +97,10 @@ If in doubt, try:
 
 ## Running
 
+Connect a computer running a JackTrip hub server to an ethernet switch.
+Teens(y|ies), running this program, with ethernet shield connected, should be
+attached, by an ethernet cable, to the switch.
+
 If you're using an external audio interface, connect it. Open Cadence, click 
 _Configure_, navigate to _Driver_, and select the appropriate _Output Device_
 (probably something like "hw:USB,0 [USB Audio]"). Select the sample rate that
@@ -120,8 +112,6 @@ choosing.
 
 Verify, either via Cadence or QJackCtl that Jack is running, and 
 doing so at the desired sample rate/buffer size.
-
-_TODO: add scripts to automate this process_
 
 After uploading to a Teensy (`pio run`), 
 the program will wait for a serial connection (if the `WAIT_FOR_SERIAL` 

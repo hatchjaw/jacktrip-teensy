@@ -62,7 +62,7 @@ void PacketStats::registerReceive(JackTripPacketHeader &header) {
         }
         if (seqNumDelta != 1) {
             Serial.printf("PACKET DROPPED: prev %d current %d dropped %d\n\n", lastReceived.SeqNumber,
-                          header.SeqNumber, header.SeqNumber - lastReceived.SeqNumber);
+                          header.SeqNumber, header.SeqNumber - lastReceived.SeqNumber - 1);
         }
 
         auto fTotal = static_cast<float>(totalReceived - IGNORE_JUNK);
