@@ -1,5 +1,5 @@
 //
-// Created by Tommy Rushton on 16/09/22.
+// Created by tar on 16/09/22.
 //
 
 #include "JackTripClient.h"
@@ -10,8 +10,7 @@ JackTripClient::JackTripClient(IPAddress &serverIpAddress, uint16_t serverTcpPor
         serverIP(serverIpAddress), // Assume client and server on same subnet
         serverTcpPort(serverTcpPort),
         timer(TeensyTimerTool::GPT1),
-        udpBuffer(UDP_PACKET_SIZE * 4)
-{
+        udpBuffer(UDP_PACKET_SIZE * 4) {
     // Generate a MAC address (from the program-once area of Teensy's flash
     // memory) to assign to the ethernet shield.
     teensyMAC(clientMAC);
@@ -130,22 +129,24 @@ void JackTripClient::stop() {
 }
 
 void JackTripClient::update(void) {
+#ifdef USE_TIMER
+    doAudioOutput();
+#else
     updateImpl();
+#endif
 }
 
 void JackTripClient::updateImpl() {
-#ifndef USE_TIMER
     receivePackets();
-#endif
-    doAudioOutput();
 #ifndef USE_TIMER
+    doAudioOutput();
+#endif
     sendPacket();
 
     if (showStats && connected) {
         packetStats.printStats();
         udpBuffer.printStats();
     }
-#endif
 }
 
 bool JackTripClient::isConnected() const {
@@ -158,7 +159,7 @@ void JackTripClient::receivePackets() {
     int size;
 
     // Check for incoming UDP packets. Get as many packets as are available.
-    while ((size = parsePacket())) {
+    while ((size = parsePacket()) > 0) {
         lastReceive = 0;
 
         if (size == EXIT_PACKET_SIZE && isExitPacket()) {

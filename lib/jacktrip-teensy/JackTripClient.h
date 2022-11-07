@@ -1,5 +1,5 @@
 //
-// Created by Tommy Rushton on 16/09/22.
+// Created by tar on 16/09/22.
 //
 
 #ifndef JACKTRIP_TEENSY_JACKTRIPCLIENT_H

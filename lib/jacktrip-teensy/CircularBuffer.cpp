@@ -55,14 +55,18 @@ void CircularBuffer<T>::write(const T *data, uint16_t len) {
         if (writeIndex == length) {
             writeIndex = 0;
         }
-        if (writeIndex == readIndex) {
-            Serial.printf("WARN: Overwriting elements not yet read; writeIndex = %" PRIu16 " (i = %d)\n",
-                          writeIndex, i);
-        }
+
         buffer[writeIndex] = data[i];
     }
 
     ++numWrites;
+//    if (lastOp == WRITE) {
+//        ++consecutiveOpCount;
+//        Serial.printf("CircularBuffer: Extra WRITE (%d)\n", consecutiveOpCount);
+//    } else {
+//        consecutiveOpCount = 1;
+//    }
+//    lastOp = WRITE;
 }
 
 template<typename T>
@@ -75,4 +79,11 @@ void CircularBuffer<T>::read(T *bufferToFill, uint16_t len) {
     }
 
     ++numReads;
+//    if (lastOp == READ) {
+//        ++consecutiveOpCount;
+//        Serial.printf("CircularBuffer: Extra READ (%d)\n", consecutiveOpCount);
+//    } else {
+//        consecutiveOpCount = 1;
+//    }
+//    lastOp = READ;
 }

@@ -5,7 +5,7 @@
 #include "WFS/WFS.h"
 
 // Define this to wait for a serial connection before proceeding with execution
-#define WAIT_FOR_SERIAL
+//#define WAIT_FOR_SERIAL
 
 // Define this to print packet stats.
 #define SHOW_STATS

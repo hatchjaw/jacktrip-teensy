@@ -27,11 +27,18 @@ public:
     void printStats();
 
 private:
-    const int STAT_INTERVAL{500};
+    enum OperationType{
+        UNKNOWN,
+        READ,
+        WRITE
+    };
+    const uint32_t STAT_INTERVAL{2500};
     uint16_t length;
     T *buffer;
     uint16_t writeIndex{0}, readIndex{0};
     int32_t numReads{0}, numWrites{0};
+    OperationType lastOp{UNKNOWN};
+    uint8_t consecutiveOpCount{1};
     elapsedMillis statTimer;
 };
 
