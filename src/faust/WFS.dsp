@@ -1,93 +1,65 @@
-/*
- * Currently implements a primitive WFS system with 32 speakers, 6 virtual sources,
- * and 2 audio inputs. Each output can be routed to one of the virtual sources using
- * UI elements.
- */
-
+declare name "Distributed WFS";
+declare description "Basic WFS for a distributed setup consisting of modules that each handle two output channels.";
 import("stdfaust.lib");
 
-// Speed of sound
-celerity = 343;
+// Speed of sound (c)
+CELERITY = 343;
+// max Y distance, in meters, that a source can be from the speaker array
+MAX_Y_DIST = 10;
+// Number of samples it takes sound to travel one meter.
+SAMPLES_PER_METRE = ma.SR/CELERITY;
+// Number of samples it takes sound to traverse the speaker array
+MAX_DELAY = N_SPEAKERS*SPEAKER_DIST*SAMPLES_PER_METRE;
+// Number of speakers in the speaker array.
+N_SPEAKERS = 16;
+// Each module (Teensy) controls two speakers.
+SPEAKERS_PER_MODULE = 2;
+// distance (m) between individual speakers: TODO: MEASURE AND ADJUST.
+SPEAKER_DIST = 0.25;
+// Number of sound sources (i.e. mono channels)
+N_SOURCES = 2;
 
-// Creates a speaker array for one source
-//speakerArray(NC,SD,x,y) = de.delay(maxDistanceDel-intSpeakMaxDel,largeDel) <: 
-speakerArray(NC,SD,x,y) = _ <: 
-//    par(i,NC,de.delay(intSpeakMaxDel,smallDel(i))/d(i))
-    par(i,NC,de.delay(intSpeakMaxDel,smallDel(i)))
-with{
-    maxDistanceDel = mD*ma.SR/celerity;
-    intSpeakMaxDel = NC*SD*ma.SR/celerity;
-    d(j) = (x-(SD*j))^2 + y^2 : sqrt;
-    largeDel = y*ma.SR/celerity;
-    smallDel(j) = (d(j)-y)*ma.SR/celerity;
-};
+// Set which speakers to control.
+moduleID = hslider("moduleID", 0, 0, (N_SPEAKERS / SPEAKERS_PER_MODULE) - 1, 1);
 
-// For future versions...
-speakerArraySpheric(NC,SD,x,y) = par(i,NC,de.delay(ma.SR,d(i))*(1/d(i)))
-with{
-    d(j) = (x-(SD*j))^2 + y^2 : sqrt : *(ma.SR)/celerity;
-};
-
-// In the current version the position of sources is static...
-sourcesArray(NC,SD,s) = par(i,ba.count(s),ba.take(i+1,s) : 
-    speakerArray(NC,SD,x(i),y(i))) :> par(i,NC,_)
-with{
-    // TODO: make these mobile; replace with sliders.
-    x(p) = p/(nSources-1)*SD*NC;
-    y(p) = (1 - abs(p/((nSources-1)/2) - 1))*mD + 0.01;
-};
-
-// This will do for future versions when we can use mobile sources
-sourcesArraySpheric(NC,SD,s) = par(i,ba.count(s),ba.take(i+1,s) <: 
-    speakerArraySpheric(NC,SD,x(i),y(i))) :> par(i,NC,_)
-with{
-    x(p) = hslider("v: Source %p/x coordinate of source %p",SD*NC/2,0,SD*NC,0.01);
-    y(p) = hslider("v: Source %p/y coordinate of source %p",10,1,20,0.01);
-};
-
-// ------------------ Implementation ----------------------------------
-
-nSpeakers = 16; // number of speakers
-
-// But I want to be able to move the sources
-nSources = 5; // number of sources -- (static) virtual sound sources
-// Each jacktrip channel should be a source.
-nInputs = 2; // number of inputs
-// Essentially each input should be a source.
-
-
-mD = 5; // maxim distance in meters
-speakersDist = 0.0783; // distance between speakers: MEASURE AND ADJUST.
-
-// !!!
-// Simulate distance by changing gain and applying a lowpass in function
+// Simulate distance by changing gain and applying a lowpass as a function
 // of distance
 // TODO: reinstate gain (and lowpass)
-dSim(p) = _;
-// dSim(p) = *(dGain) : fi.lowpass(2,ct)
-// with{
-//     distance = (1 - abs(p/((nSources-1)/2) - 1))*mD + 0.01;
-//     dGain = (mD-distance*0.5)/(mD); 
-//     ct = dGain*15000 + 5000;
-// };
-// !!!
-
-// Take nInputs and send them to nSources. A slider allows us to select
-// to which source the current input is routed.
-dist = par(i,nInputs,dSim(s(i)) <: par(j,nSources,select2(s(i)==j,0)))
+distanceSim(distance) = *(dGain) : fi.lowpass(2, fc)
 with{
-    s(k) = hslider("pos%k",0,0,(nSources-1),1) : int;
+    // Use inverse square law; I_2/I_1 = (d_1/d_2)^2
+    // Assume sensible listening distance of 5 m from array.
+    i1 = 1.; // Intensity 1...
+    d1 = 5.; // ...at distance 5 m
+    d2 = d1 + distance;
+    i2 = i1 * (d1/d2)^2; //  
+    dGain = i2;
+    // dGain = (MAX_Y_DIST - distance*.5)/(MAX_Y_DIST);
+
+    fc = dGain*15000 + 5000;
 };
 
-// // (dirty) Version implenting a crossfade between the sources
-// distXFade = dSim(mD,s) <: par(i,nSource,*(g(i)))
-// with{
-//     s = hslider("pos",0,0,(nSource-1),0.01) : si.smoo;
-//     sFrac = ma.frac(s);
-//     g(i) = (1-sFrac)*((s>=i) & (s<(i+1))) + sFrac*((s<=i) & (s>(i-1)));
-// };
+// Create a speaker array *perspective* for one source
+speakerArray(x, y) = _ <: 
+    par(i, SPEAKERS_PER_MODULE, distanceSim(hypotenuse(i)) : de.fdelay(MAX_DELAY, smallDelay(i)))
+with{
+    hypotenuse(j) = (x - (SPEAKER_DIST*(j + moduleID*2)))^2 + y^2 : sqrt;
+    smallDelay(j) = (hypotenuse(j) - y)*SAMPLES_PER_METRE;
+};
 
-process = dist :> sourcesArray(nSpeakers,speakersDist,par(i,nSources,_));
+// Take each source...
+sourcesArray(s) = par(i, ba.count(s), ba.take(i + 1, s) : 
+    // ...and distribute it across the speaker array for this module.
+    speakerArray(x(i), y(i)))
+    :> par(i, SPEAKERS_PER_MODULE, _)
+with{
+    // Use normalised input co-ordinate space; scale to dimensions.
 
+    // X position lies on the width of the speaker array
+    x(p) = hslider("%p/x", 0, 0, 1, 0.001) : si.smoo : *(SPEAKER_DIST*N_SPEAKERS);
+    // Y position is from zero (on the array) to a quasi-arbitrary maximum.
+    y(p) = hslider("%p/y", 0, 0, 1, 0.001) : si.smoo : *(MAX_Y_DIST);
+};
 
-// For each Teensy, just a delay line
+// Distribute input channels (i.e. sources) across the sources array.
+process = sourcesArray(par(i, N_SOURCES, _));

@@ -67,12 +67,21 @@ const uint32_t PERF_REPORT_INTERVAL = 5000;
 void startAudio();
 
 void receiveOSC();
+
+void parsePosition(OSCMessage &msg, int addrOffset);
+
+void parseModule(OSCMessage &msg, int addrOffset);
 //endregion
 
 void setup() {
 #ifdef WAIT_FOR_SERIAL
     while (!Serial);
 #endif
+
+    if (CrashReport) {  // Print any crash report
+        Serial.println(CrashReport);
+        CrashReport.clear();
+    }
 
     Serial.printf("Sampling rate: %f\n", AUDIO_SAMPLE_RATE_EXACT);
 
@@ -103,7 +112,7 @@ void loop() {
             AudioMemoryUsageMaxReset();
         }
     } else {
-        receiveOSC();
+//        receiveOSC();
 
         if (performanceReport > PERF_REPORT_INTERVAL) {
             Serial.printf("Audio memory in use: %d blocks; processor %f %%\n",
@@ -112,13 +121,45 @@ void loop() {
             performanceReport = 0;
         }
     }
+
+    receiveOSC();
+}
+
+void parsePosition(OSCMessage &msg, int addrOffset) {
+    // Get the source index and coordinate axis, e.g. "0/x"
+    char address[10], path[20];
+    msg.getAddress(path, addrOffset + 1);
+//    snprintf(path, sizeof path, "%s", address);
+    // Get the coordinate value (0-1).
+    auto pos = msg.getFloat(0);
+    Serial.printf("Setting \"%s\": %f\n", path, pos);
+    // Set the parameter.
+    wfs.setParamValue(path, pos);
+}
+
+void parseModule(OSCMessage &msg, int addrOffset){
+    char ipString[15];
+    IPAddress ip;
+    msg.getString(0, ipString, 15);
+    ip.fromString(ipString);
+    if (ip == qn::Ethernet.localIP()){
+        char id[2];
+        msg.getAddress(id, addrOffset + 1);
+        auto numericID = strtof(id, nullptr);
+        Serial.printf("Setting module ID: %f\n", numericID);
+        wfs.setParamValue("moduleID", numericID);
+    }
 }
 
 /**
- * Expects messages of the form
- * `oscsend osc.udp://[OSC IP]:[OSC port] /wfs/pos/[p] i [pos]
- * see `man oscsend`, or set up OSC control in Reaper and send to this Teensy's
- * IP and OSC UDP port. Or use the dedicated WFS control app.
+ * Expects messages of the form:
+ *
+ * set module ID
+ * /module/0 "[IP address]"
+ *
+ * set source 0 co-ordinates
+ * /source/0/x [0.0-1.0]
+ * /source/0/y [0.0-1.0]
  */
 void receiveOSC() {
     OSCBundle bundleIn;
@@ -126,7 +167,7 @@ void receiveOSC() {
     int size;
     if ((size = udp.parsePacket())) {
 //        Serial.printf("Packet size: %d\n", size);
-        byte buffer[size];
+        uint8_t buffer[size];
         udp.read(buffer, size);
 
         // Try to read as bundle
@@ -134,30 +175,16 @@ void receiveOSC() {
         if (!bundleIn.hasError() && bundleIn.size() > 0) {
 //            Serial.printf("OSCBundle::size: %d\n", bundleIn.size());
 
-            bundleIn.route("/wfs/pos", [](OSCMessage &msg, int addrOffset) {
-                // Get the input index (last character of the address)
-                char address[10], path[20];
-                msg.getAddress(address, addrOffset + 1);
-                snprintf(path, sizeof path, "pos%s", address);
-                auto pos = msg.getFloat(0);
-                Serial.printf("Setting \"%s\": %f\n", path, pos);
-                wfs.setParamValue(path, pos);
-            });
+            bundleIn.route("/source", parsePosition);
+            bundleIn.route("/module", parseModule);
         } else {
             // Try as message
             messageIn.fill(buffer, size);
             if (!messageIn.hasError() && messageIn.size() > 0) {
 //                Serial.printf("OSCMessage::size: %d\n", messageIn.size());
 
-                messageIn.route("/wfs/pos", [](OSCMessage &msg, int addrOffset) {
-                    // Get the input index (last character of the address)
-                    char address[10], path[20];
-                    msg.getAddress(address, addrOffset + 1);
-                    snprintf(path, sizeof path, "pos%s", address);
-                    auto pos = msg.getFloat(0);
-                    Serial.printf("Setting \"%s\": %f\n", path, pos);
-                    wfs.setParamValue(path, pos);
-                });
+                messageIn.route("/source", parsePosition);
+                messageIn.route("/module", parseModule);
             }
         }
     }
