@@ -5,6 +5,7 @@
 // have called `juce_generate_juce_header(<thisTarget>)` in your CMakeLists.txt,
 // you could `#include <JuceHeader.h>` here instead, to make all your module headers visible.
 #include <JuceHeader.h>
+#include "XYController.h"
 
 //==============================================================================
 /*
@@ -21,7 +22,7 @@ public:
     void getNextAudioBlock(const AudioSourceChannelInfo &bufferToFill) override;
 
     //==============================================================================
-    MainComponent();
+    explicit MainComponent(ValueTree &tree);
 
     ~MainComponent() override;
 
@@ -40,13 +41,11 @@ private:
 
     juce::Slider sliderX;
     juce::Slider sliderY;
-
-    std::unique_ptr<juce::DatagramSocket> socket;
-    juce::OSCSender osc;
+    XYController xyController;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 
     void showSettings();
 
-    void sendOSC();
+    ValueTree &valueTree;
 };

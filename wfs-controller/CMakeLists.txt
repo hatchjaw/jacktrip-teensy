@@ -62,7 +62,9 @@ juce_add_gui_app(WfsController
 target_sources(WfsController
         PRIVATE
         Main.cpp
-        MainComponent.cpp)
+        MainComponent.cpp
+        WFSMessenger.cpp
+        XYController.cpp)
 
 # `target_compile_definitions` adds some preprocessor definitions to our target. In a Projucer
 # project, these might be passed in the 'Preprocessor Definitions' field. JUCE modules also make use

@@ -1,7 +1,9 @@
 #include "MainComponent.h"
 
 //==============================================================================
-MainComponent::MainComponent() {
+MainComponent::MainComponent(ValueTree &tree) :
+        valueTree(tree) {
+
     setSize(800, 800);
 
     formatManager.registerBasicFormats();
@@ -12,7 +14,7 @@ MainComponent::MainComponent() {
     sliderX.setTextBoxStyle(Slider::TextEntryBoxPosition::NoTextBox, true, 0, 0);
     sliderX.setNormalisableRange({0., 1., .01});
     sliderX.onValueChange = [this] {
-        sendOSC();
+//        sendOSC();
         repaint();
     };
 
@@ -22,32 +24,25 @@ MainComponent::MainComponent() {
     sliderY.setTextBoxStyle(Slider::TextEntryBoxPosition::NoTextBox, true, 0, 0);
     sliderY.setNormalisableRange({0., 1., .01});
     sliderY.onValueChange = [this] {
-        sendOSC();
+//        sendOSC();
         repaint();
+    };
+
+    addAndMakeVisible(xyController);
+    xyController.onValueChange = [this] (Point<float> position) {
+        valueTree.setProperty("/source/0/x", position.x, nullptr);
+        valueTree.setProperty("/source/0/y", position.y, nullptr);
     };
 
     addAndMakeVisible(settingsButton);
     settingsButton.setButtonText("Settings");
     settingsButton.onClick = [this] { showSettings(); };
-
-    // Prepare to send OSC messages over UDP multicast.
-    socket = std::make_unique<DatagramSocket>();
-    // Got to bind to the local address of the appropriate network interface.
-    // TODO: make these specifiable via the UI
-    socket->bindToPort(8888, "192.168.10.10");
-    // TODO: also make multicast IP and port specifiable via the UI.
-    osc.connectToSocket(*socket, "230.0.0.20", 41814);
-
-    // Send module ID... needs generalising
-    OSCBundle bundle;
-    bundle.addElement(OSCMessage{"/module/0", juce::String{"192.168.10.182"}});
-    osc.send(bundle);
 }
 
 //==============================================================================
 void MainComponent::paint(juce::Graphics &g) {
     auto bounds{getBounds()};
-    auto padding{5}, markerWidth{20};
+    auto padding{5}, markerWidth{30};
     // (Our component is opaque, so we must completely fill the background with a solid colour)
     g.fillAll(getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId));
     g.setColour(juce::Colours::aliceblue);
@@ -58,9 +53,10 @@ void MainComponent::paint(juce::Graphics &g) {
 
 void MainComponent::resized() {
     auto bounds{getLocalBounds()};
-    auto padding{5};
+    auto padding{5}, xyPadX{75}, xyPadY{100};
     sliderX.setBounds(padding, bounds.getBottom() - padding - 40, bounds.getWidth() - 2 * padding, 20);
     sliderY.setBounds(padding, padding, 20, bounds.getHeight() - 30 - padding);
+    xyController.setBounds(xyPadX, xyPadY / 2, bounds.getWidth() - 2 * xyPadX, bounds.getHeight() - 2 * xyPadY);
     settingsButton.setBounds(padding, bounds.getBottom() - padding - 20, 50, 20);
 }
 
@@ -97,7 +93,7 @@ void MainComponent::showSettings() {
 }
 
 MainComponent::~MainComponent() {
-    osc.disconnect();
+//    osc.disconnect();
     shutdownAudio();
 }
 
@@ -115,11 +111,4 @@ void MainComponent::getNextAudioBlock(const AudioSourceChannelInfo &bufferToFill
     if (transportSource.isPlaying()) {
         transportSource.getNextAudioBlock(bufferToFill);
     }
-}
-
-void MainComponent::sendOSC() {
-    OSCBundle bundle;
-    bundle.addElement(OSCMessage{"/source/0/x", (float)sliderX.getValue()});
-    bundle.addElement(OSCMessage{"/source/0/y", (float)sliderY.getValue()});
-    osc.send(bundle);
 }

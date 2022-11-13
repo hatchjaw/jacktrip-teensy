@@ -1,4 +1,5 @@
 #include "MainComponent.h"
+#include "WFSMessenger.h"
 
 //==============================================================================
 class GuiAppApplication  : public juce::JUCEApplication
@@ -20,7 +21,11 @@ public:
         // This method is where you should put your application's initialisation code..
         juce::ignoreUnused (commandLine);
 
-        mainWindow.reset (new MainWindow (getApplicationName()));
+        valueTree = std::make_unique<ValueTree>("WFS");
+        messenger = std::make_unique<WFSMessenger>(*valueTree);
+        messenger->connect();
+
+        mainWindow.reset (new MainWindow (getApplicationName(), *valueTree));
     }
 
     void shutdown() override
@@ -54,14 +59,14 @@ public:
     class MainWindow    : public juce::DocumentWindow
     {
     public:
-        explicit MainWindow (juce::String name)
+        MainWindow (juce::String name, ValueTree &valueTree)
             : DocumentWindow (name,
                               juce::Desktop::getInstance().getDefaultLookAndFeel()
                                                           .findColour (ResizableWindow::backgroundColourId),
                               DocumentWindow::allButtons)
         {
             setUsingNativeTitleBar (true);
-            setContentOwned (new MainComponent(), true);
+            setContentOwned (new MainComponent(valueTree), true);
 
            #if JUCE_IOS || JUCE_ANDROID
             setFullScreen (true);
@@ -94,6 +99,8 @@ public:
 
 private:
     std::unique_ptr<MainWindow> mainWindow;
+    std::unique_ptr<ValueTree> valueTree;
+    std::unique_ptr<WFSMessenger> messenger;
 };
 
 //==============================================================================

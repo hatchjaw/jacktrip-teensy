@@ -142,7 +142,7 @@ void parseModule(OSCMessage &msg, int addrOffset){
     IPAddress ip;
     msg.getString(0, ipString, 15);
     ip.fromString(ipString);
-    if (ip == qn::Ethernet.localIP()){
+    if (ip == EthernetClass::localIP()){
         char id[2];
         msg.getAddress(id, addrOffset + 1);
         auto numericID = strtof(id, nullptr);
