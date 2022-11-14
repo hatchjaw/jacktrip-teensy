@@ -29,9 +29,10 @@ MainComponent::MainComponent(ValueTree &tree) :
     };
 
     addAndMakeVisible(xyController);
-    xyController.onValueChange = [this] (Point<float> position) {
-        valueTree.setProperty("/source/0/x", position.x, nullptr);
-        valueTree.setProperty("/source/0/y", position.y, nullptr);
+    xyController.setNormalisableRanges({0., 1., .01}, {0., 1., .01});
+    xyController.onValueChange = [this] (uint nodeIndex, Point<float> position) {
+        valueTree.setProperty("/source/" + String{nodeIndex} + "/x", position.x, nullptr);
+        valueTree.setProperty("/source/" + String{nodeIndex} + "/y", position.y, nullptr);
     };
 
     addAndMakeVisible(settingsButton);
