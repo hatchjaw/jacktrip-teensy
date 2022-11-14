@@ -127,9 +127,16 @@ void loop() {
 
 void parsePosition(OSCMessage &msg, int addrOffset) {
     // Get the source index and coordinate axis, e.g. "0/x"
-    char address[10], path[20];
+    char path[20];
     msg.getAddress(path, addrOffset + 1);
-//    snprintf(path, sizeof path, "%s", address);
+    // Rough-and-ready check to prevent attempting to set an invalid source
+    // position.
+    auto sourceIdx{atoi(path)};
+    Serial.println(sourceIdx);
+    if (sourceIdx >= JackTripClient::getNumChannels()){
+        Serial.printf("Invalid source index: %d\n", sourceIdx);
+        return;
+    }
     // Get the coordinate value (0-1).
     auto pos = msg.getFloat(0);
     Serial.printf("Setting \"%s\": %f\n", path, pos);

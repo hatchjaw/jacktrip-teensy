@@ -47,6 +47,8 @@ public:
 
     void setShowStats(bool show, uint16_t intervalMS = 1'000);
 
+    static uint16_t getNumChannels() {return NUM_CHANNELS;};
+
 private:
     static constexpr uint8_t NUM_CHANNELS{2};
     static constexpr uint16_t UDP_PACKET_SIZE{
