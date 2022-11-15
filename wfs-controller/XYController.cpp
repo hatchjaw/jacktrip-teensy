@@ -70,8 +70,11 @@ void XYController::createNode(Point<float> position) {
     };
 
     if (onValueChange != nullptr) {
-        // This, too, is pretty bad.
         onValueChange(nodes.size() - 1, {node->value.x, node->value.y});
+    }
+
+    if (onAddNode != nullptr) {
+        onAddNode();
     }
 
     repaint(node->getBounds());
@@ -86,6 +89,10 @@ void XYController::removeNode(Component *const node) {
     for (auto it = nodes.begin(); it < nodes.end(); ++it) {
         if (it->get() == node) {
             nodes.erase(it);
+            if (onRemoveNode != nullptr) {
+                onRemoveNode();
+            }
+            return;
         }
     }
 }

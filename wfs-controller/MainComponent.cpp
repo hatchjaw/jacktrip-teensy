@@ -3,20 +3,39 @@
 //==============================================================================
 MainComponent::MainComponent(ValueTree &tree) :
         valueTree(tree) {
+    addAndMakeVisible(xyController);
+    xyController.onValueChange = [this](uint nodeIndex, Point<float> position) {
+        valueTree.setProperty("/source/" + String{nodeIndex} + "/x", position.x, nullptr);
+        valueTree.setProperty("/source/" + String{nodeIndex} + "/y", position.y, nullptr);
+    };
+    xyController.onAddNode = [this] { addSource(); };
+    xyController.onRemoveNode = [this] { removeSource(); };
+
+    addAndMakeVisible(settingsButton);
+    settingsButton.setButtonText("Settings");
+    settingsButton.onClick = [this] { showSettings(); };
 
     setSize(800, 800);
 
     formatManager.registerBasicFormats();
 
-    addAndMakeVisible(xyController);
-    xyController.onValueChange = [this] (uint nodeIndex, Point<float> position) {
-        valueTree.setProperty("/source/" + String{nodeIndex} + "/x", position.x, nullptr);
-        valueTree.setProperty("/source/" + String{nodeIndex} + "/y", position.y, nullptr);
-    };
+    setAudioChannels(0, 2);
 
-    addAndMakeVisible(settingsButton);
-    settingsButton.setButtonText("Settings");
-    settingsButton.onClick = [this] { showSettings(); };
+    // Use JACK for output
+    // TODO: warn if JACK not found
+    auto setup{deviceManager.getAudioDeviceSetup()};
+    auto &deviceTypes{deviceManager.getAvailableDeviceTypes()};
+    for (auto type: deviceTypes) {
+        type->scanForDevices();
+        if (type->getDeviceNames().contains("JACK Audio Connection Kit", true)) {
+            setup.outputDeviceName = "JACK Audio Connection Kit";
+            break;
+        }
+    }
+    deviceManager.setAudioDeviceSetup(setup, true);
+
+    // Autoconnect to jacktrip clients.
+//    jack_connect
 }
 
 //==============================================================================
@@ -68,18 +87,59 @@ MainComponent::~MainComponent() {
     shutdownAudio();
 }
 
-void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRate) {
-    transportSource.prepareToPlay(samplesPerBlockExpected, sampleRate);
-    transportSource.setGain(1.f);
-    transportSource.setLooping(true);
+void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRateReported) {
+    blockSize = samplesPerBlockExpected;
+    this->sampleRate = sampleRateReported;
+//    for (auto &source: transportSources) {
+//        source->prepareToPlay(samplesPerBlockExpected, sampleRate);
+//        source->setGain(.5f);
+//        source->setLooping(true);
+//    }
 }
 
 void MainComponent::releaseResources() {
-    transportSource.releaseResources();
+    for (auto &source: transportSources) {
+        source->releaseResources();
+    }
 }
 
 void MainComponent::getNextAudioBlock(const AudioSourceChannelInfo &bufferToFill) {
-    if (transportSource.isPlaying()) {
-        transportSource.getNextAudioBlock(bufferToFill);
+    for (auto &source: transportSources) {
+        if (source->isPlaying()) {
+            source->getNextAudioBlock(bufferToFill);
+        }
     }
+}
+
+void MainComponent::addSource() {
+    fileChooser = std::make_unique<FileChooser>("Select an audio file",
+                                                File("~/Music"),
+                                                "*.wav;*.aiff;*.flac;*.ogg");
+    fileChooser->launchAsync(
+            FileBrowserComponent::openMode | FileBrowserComponent::canSelectFiles,
+            [this](const FileChooser &chooser) {
+                auto file = chooser.getResult();
+                if (file != File{}) {
+                    auto *reader = formatManager.createReaderFor(file);
+
+                    if (reader != nullptr) {
+                        auto newSource = std::make_unique<juce::AudioFormatReaderSource>(reader, true);
+                        transportSources.push_back(std::make_unique<AudioTransportSource>());
+                        transportSources.back()->setSource(newSource.get(), 0, nullptr, reader->sampleRate);
+                        transportSources.back()->prepareToPlay(blockSize, sampleRate);
+                        transportSources.back()->setGain(.5f);
+                        transportSources.back()->setLooping(true);
+                        transportSources.back()->start();
+                        readerSource = std::move(newSource);
+                    }
+                }
+            }
+    );
+}
+
+void MainComponent::removeSource() {
+    auto &source{transportSources.back()};
+    source->stop();
+    source->releaseResources();
+    transportSources.erase(transportSources.end());
 }

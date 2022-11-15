@@ -19,6 +19,10 @@ public:
 
     std::function<void(uint nodeIndex, Point<float>)> onValueChange;
 
+    std::function<void()> onAddNode;
+
+    std::function<void()> onRemoveNode;
+
 protected:
     class Node : public Component {
     private:

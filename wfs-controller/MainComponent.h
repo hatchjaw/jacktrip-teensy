@@ -6,6 +6,7 @@
 // you could `#include <JuceHeader.h>` here instead, to make all your module headers visible.
 #include <JuceHeader.h>
 #include "XYController.h"
+#include <jack/jack.h>
 
 //==============================================================================
 /*
@@ -15,7 +16,7 @@
 class MainComponent   : public juce::AudioAppComponent
 {
 public:
-    void prepareToPlay(int samplesPerBlockExpected, double sampleRate) override;
+    void prepareToPlay(int samplesPerBlockExpected, double sampleRateReported) override;
 
     void releaseResources() override;
 
@@ -37,7 +38,9 @@ private:
 
     juce::AudioFormatManager formatManager;
     std::unique_ptr<juce::AudioFormatReaderSource> readerSource;
-    juce::AudioTransportSource transportSource;
+    std::vector<std::unique_ptr<juce::AudioTransportSource>> transportSources;
+
+    std::unique_ptr<juce::FileChooser> fileChooser;
 
     XYController xyController;
 
@@ -46,4 +49,11 @@ private:
     void showSettings();
 
     ValueTree &valueTree;
+
+    void addSource();
+
+    void removeSource();
+
+    int blockSize{0};
+    double sampleRate{0.};
 };
