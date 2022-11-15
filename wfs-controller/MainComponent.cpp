@@ -11,6 +11,19 @@ MainComponent::MainComponent(ValueTree &tree) :
     xyController.onAddNode = [this] { addSource(); };
     xyController.onRemoveNode = [this] { removeSource(); };
 
+    for (uint i = 0; i < NUM_MODULES; ++i) {
+        auto cb{new ComboBox};
+        addAndMakeVisible(cb);
+        cb->addItemList(TEENSY_IPS, 1);
+        cb->onChange = [this, i] {
+            auto ip{TEENSY_IPS[moduleSelectors[i]->getSelectedId() - 1]};
+            valueTree.setProperty("/module/" + String(i), ip, nullptr);
+        };
+//        LookAndFeel_V4 &lf = cb->getLookAndFeel();
+//        cb->setLookAndFeel(lf);
+        moduleSelectors.add(cb);
+    }
+
     addAndMakeVisible(settingsButton);
     settingsButton.setButtonText("Settings");
     settingsButton.onClick = [this] { showSettings(); };
@@ -34,7 +47,9 @@ MainComponent::MainComponent(ValueTree &tree) :
     }
     deviceManager.setAudioDeviceSetup(setup, true);
 
-    // Autoconnect to jacktrip clients.
+    // TODO: set buffer size?
+
+    // TODO: Autoconnect to jacktrip clients.
 //    jack_connect
 }
 
@@ -48,6 +63,15 @@ void MainComponent::resized() {
     auto bounds{getLocalBounds()};
     auto padding{5}, xyPadX{75}, xyPadY{100};
     xyController.setBounds(xyPadX, xyPadY / 2, bounds.getWidth() - 2 * xyPadX, bounds.getHeight() - 2 * xyPadY);
+    auto moduleSelectorWidth{static_cast<float>(xyController.getWidth()) / static_cast<float>(NUM_MODULES)};
+    for (int i{0}; i < moduleSelectors.size(); ++i) {
+        moduleSelectors[i]->setBounds(
+                xyPadX + i * moduleSelectorWidth,
+                xyController.getBottom() + padding,
+                moduleSelectorWidth,
+                30
+        );
+    }
     settingsButton.setBounds(padding, bounds.getBottom() - padding - 20, 50, 20);
 }
 
@@ -113,7 +137,7 @@ void MainComponent::getNextAudioBlock(const AudioSourceChannelInfo &bufferToFill
 
 void MainComponent::addSource() {
     fileChooser = std::make_unique<FileChooser>("Select an audio file",
-                                                File("~/Music"),
+                                                File("~/Documents"),
                                                 "*.wav;*.aiff;*.flac;*.ogg");
     fileChooser->launchAsync(
             FileBrowserComponent::openMode | FileBrowserComponent::canSelectFiles,

@@ -30,10 +30,14 @@ void WFSMessenger::connect() {
 }
 
 void WFSMessenger::valueTreePropertyChanged(ValueTree &treeWhosePropertyHasChanged, const Identifier &property) {
-    auto value = static_cast<float>(valueTree.getProperty(property));
-
     OSCBundle bundle;
-    bundle.addElement(OSCMessage{property.toString(), value});
+
+    if (property.toString().contains("module")) {
+        bundle.addElement(OSCMessage{property.toString(), valueTree.getProperty(property).toString()});
+    } else {
+        bundle.addElement(OSCMessage{property.toString(), static_cast<float>(valueTree.getProperty(property))});
+    }
+
     send(bundle);
 }
 

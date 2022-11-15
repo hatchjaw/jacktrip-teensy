@@ -10,7 +10,7 @@ JackTripClient::JackTripClient(IPAddress &serverIpAddress, uint16_t serverTcpPor
         serverIP(serverIpAddress), // Assume client and server on same subnet
         serverTcpPort(serverTcpPort),
         timer(TeensyTimerTool::GPT1),
-        udpBuffer(UDP_PACKET_SIZE * 4) {
+        udpBuffer(UDP_PACKET_SIZE * 16) {
     // Generate a MAC address (from the program-once area of Teensy's flash
     // memory) to assign to the ethernet shield.
     teensyMAC(clientMAC);

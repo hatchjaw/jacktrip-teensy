@@ -9,13 +9,13 @@ MAX_Y_DIST = 10;
 // Number of samples it takes sound to travel one meter.
 SAMPLES_PER_METRE = ma.SR/CELERITY;
 // Number of samples it takes sound to traverse the speaker array
-MAX_DELAY = N_SPEAKERS*SPEAKER_DIST*SAMPLES_PER_METRE;
+MAX_DELAY = (N_SPEAKERS-1)*SPEAKER_DIST*SAMPLES_PER_METRE;
 // Number of speakers in the speaker array.
 N_SPEAKERS = 16;
 // Each module (Teensy) controls two speakers.
 SPEAKERS_PER_MODULE = 2;
 // distance (m) between individual speakers: TODO: MEASURE AND ADJUST.
-SPEAKER_DIST = 0.25;
+SPEAKER_DIST = 0.23;
 // Number of sound sources (i.e. mono channels)
 N_SOURCES = 2;
 
@@ -24,7 +24,6 @@ moduleID = hslider("moduleID", 0, 0, (N_SPEAKERS / SPEAKERS_PER_MODULE) - 1, 1);
 
 // Simulate distance by changing gain and applying a lowpass as a function
 // of distance
-// TODO: reinstate gain (and lowpass)
 distanceSim(distance) = *(dGain) : fi.lowpass(2, fc)
 with{
     // Use inverse square law; I_2/I_1 = (d_1/d_2)^2
@@ -32,7 +31,7 @@ with{
     i1 = 1.; // Intensity 1...
     d1 = 5.; // ...at distance 5 m
     d2 = d1 + distance;
-    i2 = i1 * (d1/d2)^2; //  
+    i2 = i1 * (d1/d2)^2; //
     dGain = i2;
     // dGain = (MAX_Y_DIST - distance*.5)/(MAX_Y_DIST);
 
@@ -40,17 +39,38 @@ with{
 };
 
 // Create a speaker array *perspective* for one source
-speakerArray(x, y) = _ <: 
+// i.e. give each source a distance simulation and a delay
+// relative to each speaker.
+speakerArray(x, y) = _ <:
     par(i, SPEAKERS_PER_MODULE, distanceSim(hypotenuse(i)) : de.fdelay(MAX_DELAY, smallDelay(i)))
 with{
-    hypotenuse(j) = (x - (SPEAKER_DIST*(j + moduleID*2)))^2 + y^2 : sqrt;
+    // y (front-to-back) is always just y, the longitudinal
+    // distance of the source from the array.
+    // Get x between the source and specific speaker in the array
+    // E.g. for 16 speakers (8 modules), with a spacing, s, of .25 m,
+    //      array width, w = (16-1)*.25 = 3.75,
+    //        let module m = 2 (third module in array)
+    //       let speaker j = 0 (first speaker in module)
+    //               let x = 2.25 (m, relative to left edge of array)
+    //                  cx = x - s*(m*2 + j)
+    //                     = 2.25 - .25*(2*2 + 0)
+    //                     = 1.25
+    //
+    //               let m = 7, j = 1, x = 2.25
+    //                  cx = 2.25 - .25*(7*2 + 1) = -1.5
+    //
+    //               let m = 0, j = 0, x = 2.25
+    //                  cx = 2.25 - .25*(0*2 + 0) = 2.25
+    cathetusX(k) = x - (SPEAKER_DIST*(k + moduleID*2));
+    hypotenuse(j) = cathetusX(j)^2 + y^2 : sqrt;
     smallDelay(j) = (hypotenuse(j) - y)*SAMPLES_PER_METRE;
 };
 
 // Take each source...
-sourcesArray(s) = par(i, ba.count(s), ba.take(i + 1, s) : 
+sourcesArray(s) = par(i, ba.count(s), ba.take(i + 1, s) :
     // ...and distribute it across the speaker array for this module.
     speakerArray(x(i), y(i)))
+    // Merge onto the output speakers.
     :> par(i, SPEAKERS_PER_MODULE, _)
 with{
     // Use normalised input co-ordinate space; scale to dimensions.
