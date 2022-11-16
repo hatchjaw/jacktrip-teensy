@@ -9,7 +9,9 @@ JackTripClient::JackTripClient(IPAddress &serverIpAddress, uint16_t serverTcpPor
         clientIP(serverIpAddress),
         serverIP(serverIpAddress), // Assume client and server on same subnet
         serverTcpPort(serverTcpPort),
+#ifdef USE_TIMER
         timer(TeensyTimerTool::GPT1),
+#endif
         udpBuffer(UDP_PACKET_SIZE * 16) {
     // Generate a MAC address (from the program-once area of Teensy's flash
     // memory) to assign to the ethernet shield.
@@ -31,9 +33,23 @@ uint8_t JackTripClient::begin(uint16_t port) {
         return 0;
     }
 
-    if (LinkON != startEthernet()) {
-        Serial.println("JackTripClient: failed to start ethernet connection.");
+    if (UDP_PACKET_SIZE > FNET_SOCKET_DEFAULT_SIZE) {
+        EthernetClass::setSocketSize(UDP_PACKET_SIZE);
+    }
+
+    Serial.print("JackTripClient: MAC address is: ");
+    for (int i = 0; i < 6; ++i) {
+        Serial.printf(i < 5 ? "%02X:" : "%02X", clientMAC[i]);
+    }
+    Serial.println();
+
+    EthernetClass::begin(clientMAC, clientIP);
+
+    if (EthernetClass::linkStatus() != LinkON) {
+        Serial.println("JackTripClient: Ethernet link could not be established.");
         return 0;
+    } else {
+        Serial.println("JackTripClient: Ethernet connected.");
     }
 
     Serial.print("JackTripClient: IP is ");
@@ -48,30 +64,6 @@ uint8_t JackTripClient::begin(uint16_t port) {
 #endif
 
     return EthernetUDP::begin(port);
-}
-
-EthernetLinkStatus JackTripClient::startEthernet() {
-//    EthernetClass::setSocketNum(4);
-
-    if (UDP_PACKET_SIZE > FNET_SOCKET_DEFAULT_SIZE) {
-        EthernetClass::setSocketSize(UDP_PACKET_SIZE);
-    }
-
-    Serial.print("JackTripClient: MAC address is: ");
-    for (int i = 0; i < 6; ++i) {
-        Serial.printf(i < 5 ? "%02X:" : "%02X", clientMAC[i]);
-    }
-    Serial.println();
-
-    EthernetClass::begin(clientMAC, clientIP);
-
-    if (EthernetClass::linkStatus() != LinkON) {
-        Serial.println("JackTripClient: Ethernet cable is not connected.");
-    } else {
-        Serial.println("JackTripClient: Ethernet connected.");
-    }
-
-    return EthernetClass::linkStatus();
 }
 
 bool JackTripClient::connect(uint16_t timeout) {
