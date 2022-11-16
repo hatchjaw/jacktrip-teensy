@@ -6,22 +6,24 @@
 #define JACKTRIP_TEENSY_JACKTRIPCLIENT_H
 
 #include <Audio.h>
-#include <NativeEthernet.h>
+#include <QNEthernet.h>
 #include <TeensyID.h>
 #include <TeensyTimerTool.h>
 #include "PacketHeader.h"
 #include "CircularBuffer.h"
 #include "PacketStats.h"
 
+namespace qn = qindesign::network;
+
 //#define USE_TIMER
-#define RECEIVE_CONDITION while
+#define RECEIVE_CONDITION if
 
 /**
  * Inputs: signals produced by other audio components, to be sent to peers over
  *   the JackTrip protocol to do with as they will.
  * Outputs: audio signals received over the JackTrip protocol.
  */
-class JackTripClient : public AudioStream, EthernetUDP {
+class JackTripClient : public AudioStream, qn::EthernetUDP {
 public:
     explicit JackTripClient(IPAddress &serverIpAddress, uint16_t serverTcpPort = 4464);
 
@@ -66,9 +68,8 @@ private:
 
     /**
      * Attempt to establish an ethernet connection.
-     * @return Connection status
      */
-    EthernetLinkStatus startEthernet();
+    bool startEthernet();
 
     /**
      * "The heart of your object is it's update() function.

@@ -6,6 +6,7 @@
 
 JackTripClient::JackTripClient(IPAddress &serverIpAddress, uint16_t serverTcpPort) :
         AudioStream(2, inputQueueArray),
+        qn::EthernetUDP(8),
         clientIP(serverIpAddress),
         serverIP(serverIpAddress), // Assume client and server on same subnet
         serverTcpPort(serverTcpPort),
@@ -31,13 +32,13 @@ uint8_t JackTripClient::begin(uint16_t port) {
         return 0;
     }
 
-    if (LinkON != startEthernet()) {
+    if (qn::EthernetLinkStatus::LinkON != startEthernet()) {
         Serial.println("JackTripClient: failed to start ethernet connection.");
         return 0;
     }
 
     Serial.print("JackTripClient: IP is ");
-    Serial.println(EthernetClass::localIP());
+    Serial.println(qn::Ethernet.localIP());
 
     Serial.printf("JackTripClient: Packet size is %d bytes\n", UDP_PACKET_SIZE);
 
@@ -50,28 +51,14 @@ uint8_t JackTripClient::begin(uint16_t port) {
     return EthernetUDP::begin(port);
 }
 
-EthernetLinkStatus JackTripClient::startEthernet() {
-//    EthernetClass::setSocketNum(4);
-
-    if (UDP_PACKET_SIZE > FNET_SOCKET_DEFAULT_SIZE) {
-        EthernetClass::setSocketSize(UDP_PACKET_SIZE);
-    }
-
+bool JackTripClient::startEthernet() {
     Serial.print("JackTripClient: MAC address is: ");
     for (int i = 0; i < 6; ++i) {
         Serial.printf(i < 5 ? "%02X:" : "%02X", clientMAC[i]);
     }
     Serial.println();
 
-    EthernetClass::begin(clientMAC, clientIP);
-
-    if (EthernetClass::linkStatus() != LinkON) {
-        Serial.println("JackTripClient: Ethernet cable is not connected.");
-    } else {
-        Serial.println("JackTripClient: Ethernet connected.");
-    }
-
-    return EthernetClass::linkStatus();
+    return qn::Ethernet.begin(clientIP, {255, 255, 255, 0}, {192, 168, 10, 1});
 }
 
 bool JackTripClient::connect(uint16_t timeout) {
@@ -85,12 +72,13 @@ bool JackTripClient::connect(uint16_t timeout) {
     Serial.print(serverIP);
     Serial.printf(":%d... ", serverTcpPort);
 
-    EthernetClient c = EthernetClient();
-    c.setConnectionTimeout(timeout);
+    qn::EthernetClient c = qn::EthernetClient();
+//    c.setConnectionTimeout(timeout);
     if (c.connect(serverIP, serverTcpPort)) {
         Serial.println("Succeeded!");
     } else {
         Serial.println();
+        delay(timeout);
         return false;
     }
 

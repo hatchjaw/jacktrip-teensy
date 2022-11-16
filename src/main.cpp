@@ -1,11 +1,11 @@
-#include <NativeEthernet.h>
+#include <QNEthernet.h>
 #include <Audio.h>
 #include <OSCBundle.h>
 #include <JackTripClient.h>
 #include "WFS/WFS.h"
 
 // Define this to wait for a serial connection before proceeding with execution
-//#define WAIT_FOR_SERIAL
+#define WAIT_FOR_SERIAL
 
 // Define this to print packet stats.
 #define SHOW_STATS
@@ -27,8 +27,6 @@ AudioControlSGTL5000 audioShield;
 AudioOutputI2S out;
 
 JackTripClient jtc{jackTripServerIP};
-
-EthernetUDP udp;
 
 WFS wfs;
 AudioMixer4 mixerL;
@@ -63,6 +61,10 @@ elapsedMillis performanceReport;
 const uint32_t PERF_REPORT_INTERVAL = 5000;
 //endregion
 
+namespace qn = qindesign::network;
+
+qn::EthernetUDP udp;
+
 //region Forward declarations
 void startAudio();
 
@@ -94,6 +96,7 @@ void setup() {
         WAIT_INFINITE()
     }
 
+    // NB. Ethernet::begin() already called by JackTripClient
     if (1 != udp.beginMulticast(oscMulticastIP, OSC_MULTICAST_PORT)) {
         Serial.println("Failed to start listening for OSC messages.");
         WAIT_INFINITE()
@@ -112,7 +115,7 @@ void loop() {
             AudioMemoryUsageMaxReset();
         }
     } else {
-//        receiveOSC();
+        receiveOSC();
 
         if (performanceReport > PERF_REPORT_INTERVAL) {
             Serial.printf("Audio memory in use: %d blocks; processor %f %%\n",
@@ -121,8 +124,6 @@ void loop() {
             performanceReport = 0;
         }
     }
-
-    receiveOSC();
 }
 
 void parsePosition(OSCMessage &msg, int addrOffset) {
@@ -149,7 +150,7 @@ void parseModule(OSCMessage &msg, int addrOffset){
     IPAddress ip;
     msg.getString(0, ipString, 15);
     ip.fromString(ipString);
-    if (ip == EthernetClass::localIP()){
+    if (ip == qn::Ethernet.localIP()){
         char id[2];
         msg.getAddress(id, addrOffset + 1);
         auto numericID = strtof(id, nullptr);
@@ -172,7 +173,7 @@ void receiveOSC() {
     OSCBundle bundleIn;
     OSCMessage messageIn;
     int size;
-    if ((size = udp.parsePacket())) {
+    if ((size = udp.parsePacket()) > 0) {
 //        Serial.printf("Packet size: %d\n", size);
         uint8_t buffer[size];
         udp.read(buffer, size);
