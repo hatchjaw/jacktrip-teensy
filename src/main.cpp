@@ -58,6 +58,7 @@ AudioConnection patchCord91(mixerR, 0, jtc, 1);
 
 //region Warning params
 elapsedMillis performanceReport;
+elapsedMillis isLoopingReport;
 const uint32_t PERF_REPORT_INTERVAL = 5000;
 //endregion
 
@@ -108,6 +109,11 @@ void setup() {
 }
 
 void loop() {
+    if (isLoopingReport > 1000) {
+        Serial.println("\tStill looping");
+        isLoopingReport = 0;
+    }
+
     if (!jtc.isConnected()) {
         jtc.connect(2500);
         if (jtc.isConnected()) {

@@ -5,17 +5,22 @@
 #ifndef JACKTRIP_TEENSY_JACKTRIPCLIENT_H
 #define JACKTRIP_TEENSY_JACKTRIPCLIENT_H
 
+#undef USE_TIMER
+
 #include <Audio.h>
 #include <QNEthernet.h>
 #include <TeensyID.h>
+
+#ifdef USE_TIMER
 #include <TeensyTimerTool.h>
+#endif
+
 #include "PacketHeader.h"
 #include "CircularBuffer.h"
 #include "PacketStats.h"
 
 namespace qn = qindesign::network;
 
-//#define USE_TIMER
 #define RECEIVE_CONDITION if
 
 /**
@@ -49,13 +54,13 @@ public:
 
     void setShowStats(bool show, uint16_t intervalMS = 1'000);
 
-    static uint16_t getNumChannels() {return NUM_CHANNELS;};
+    static uint16_t getNumChannels() { return NUM_CHANNELS; };
 
 private:
     static constexpr uint8_t NUM_CHANNELS{2};
     static constexpr uint16_t UDP_PACKET_SIZE{
             PACKET_HEADER_SIZE + NUM_CHANNELS * AUDIO_BLOCK_SAMPLES * sizeof(uint16_t)};
-    static constexpr uint32_t RECEIVE_TIMEOUT_MS{5000};
+    static constexpr uint32_t RECEIVE_TIMEOUT_MS{10'000};
     static constexpr uint16_t AUDIO_BUFFER_SIZE{AUDIO_BLOCK_SAMPLES * NUM_CHANNELS * 2};
     /**
      * Size in bytes of one channel's worth of samples.
@@ -65,11 +70,6 @@ private:
      * Size, in bytes, of JackTrip's exit packet
      */
     static constexpr uint8_t EXIT_PACKET_SIZE{63};
-
-    /**
-     * Attempt to establish an ethernet connection.
-     */
-    bool startEthernet();
 
     /**
      * "The heart of your object is it's update() function.
@@ -154,7 +154,9 @@ private:
     JackTripPacketHeader prevServerHeader{};
     JackTripPacketHeader *serverHeader;
 
+#ifdef USE_TIMER
     TeensyTimerTool::PeriodicTimer timer;
+#endif
 
     CircularBuffer<uint8_t> udpBuffer;
 //    CircularBuffer<int16_t> audioBuffer;

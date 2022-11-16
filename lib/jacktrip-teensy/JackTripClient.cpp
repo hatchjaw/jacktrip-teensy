@@ -10,7 +10,9 @@ JackTripClient::JackTripClient(IPAddress &serverIpAddress, uint16_t serverTcpPor
         clientIP(serverIpAddress),
         serverIP(serverIpAddress), // Assume client and server on same subnet
         serverTcpPort(serverTcpPort),
+#ifdef USE_TIMER
         timer(TeensyTimerTool::GPT1),
+#endif
         udpBuffer(UDP_PACKET_SIZE * 16) {
     // Generate a MAC address (from the program-once area of Teensy's flash
     // memory) to assign to the ethernet shield.
@@ -32,7 +34,16 @@ uint8_t JackTripClient::begin(uint16_t port) {
         return 0;
     }
 
-    if (qn::EthernetLinkStatus::LinkON != startEthernet()) {
+    Serial.print("JackTripClient: MAC address is: ");
+    for (int i = 0; i < 6; ++i) {
+        Serial.printf(i < 5 ? "%02X:" : "%02X", clientMAC[i]);
+    }
+    Serial.println();
+
+    // Establish an ethernet connection.
+//    qn::Ethernet.setLocalIP(clientIP);
+    if (!qn::Ethernet.begin(clientIP, {255, 255, 255, 0}, {192, 168, 10, 1}) ||
+        !qn::Ethernet.waitForLink(5000)) {
         Serial.println("JackTripClient: failed to start ethernet connection.");
         return 0;
     }
@@ -49,16 +60,6 @@ uint8_t JackTripClient::begin(uint16_t port) {
 #endif
 
     return EthernetUDP::begin(port);
-}
-
-bool JackTripClient::startEthernet() {
-    Serial.print("JackTripClient: MAC address is: ");
-    for (int i = 0; i < 6; ++i) {
-        Serial.printf(i < 5 ? "%02X:" : "%02X", clientMAC[i]);
-    }
-    Serial.println();
-
-    return qn::Ethernet.begin(clientIP, {255, 255, 255, 0}, {192, 168, 10, 1});
 }
 
 bool JackTripClient::connect(uint16_t timeout) {
