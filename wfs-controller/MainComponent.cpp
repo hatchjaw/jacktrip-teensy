@@ -37,6 +37,7 @@ MainComponent::MainComponent(ValueTree &tree) :
     // Use JACK for output
     // TODO: warn if JACK not found
     auto setup{deviceManager.getAudioDeviceSetup()};
+    setup.bufferSize = 32;
     auto &deviceTypes{deviceManager.getAvailableDeviceTypes()};
     for (auto type: deviceTypes) {
         type->scanForDevices();
@@ -47,10 +48,9 @@ MainComponent::MainComponent(ValueTree &tree) :
     }
     deviceManager.setAudioDeviceSetup(setup, true);
 
-    // TODO: set buffer size?
-
     // TODO: Autoconnect to jacktrip clients.
-//    jack_connect
+//    auto client =
+//    jack_connect();
 }
 
 //==============================================================================
@@ -128,6 +128,7 @@ void MainComponent::releaseResources() {
 }
 
 void MainComponent::getNextAudioBlock(const AudioSourceChannelInfo &bufferToFill) {
+    // TODO: each source occupies a channel; fix the panning accordingly.
     for (auto &source: transportSources) {
         if (source->isPlaying()) {
             source->getNextAudioBlock(bufferToFill);
