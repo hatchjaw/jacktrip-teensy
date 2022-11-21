@@ -116,6 +116,7 @@ void XYController::Node::mouseDown(const MouseEvent &event) {
         // Try to remove this node.
         PopupMenu m;
         m.addItem(1, "Remove node");
+        // TODO: expose possibility of adding more menu items via a callback.
         m.showMenuAsync(PopupMenu::Options(), [this, event](int result) {
             if (result == 1 && onRemove != nullptr) {
                 onRemove(this);

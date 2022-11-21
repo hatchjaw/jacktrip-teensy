@@ -3,6 +3,7 @@
 //==============================================================================
 MainComponent::MainComponent(ValueTree &tree) :
         valueTree(tree) {
+
     addAndMakeVisible(xyController);
     xyController.onValueChange = [this](uint nodeIndex, Point<float> position) {
         valueTree.setProperty("/source/" + String{nodeIndex} + "/x", position.x, nullptr);
@@ -19,14 +20,16 @@ MainComponent::MainComponent(ValueTree &tree) :
             auto ip{TEENSY_IPS[moduleSelectors[i]->getSelectedId() - 1]};
             valueTree.setProperty("/module/" + String(i), ip, nullptr);
         };
-//        LookAndFeel_V4 &lf = cb->getLookAndFeel();
-//        cb->setLookAndFeel(lf);
         moduleSelectors.add(cb);
     }
 
     addAndMakeVisible(settingsButton);
     settingsButton.setButtonText("Settings");
     settingsButton.onClick = [this] { showSettings(); };
+
+    addAndMakeVisible(connectToModulesButton);
+    connectToModulesButton.setButtonText("Connect to modules");
+    connectToModulesButton.onClick = [this] { jack.connect(); };
 
     setSize(800, 800);
 
@@ -48,9 +51,7 @@ MainComponent::MainComponent(ValueTree &tree) :
     }
     deviceManager.setAudioDeviceSetup(setup, true);
 
-    // TODO: Autoconnect to jacktrip clients.
-//    auto client =
-//    jack_connect();
+    jack.connect();
 }
 
 //==============================================================================
@@ -73,6 +74,7 @@ void MainComponent::resized() {
         );
     }
     settingsButton.setBounds(padding, bounds.getBottom() - padding - 20, 50, 20);
+    connectToModulesButton.setBounds(xyController.getRight() - 100, xyController.getY() - 25, 100, 20);
 }
 
 void MainComponent::showSettings() {

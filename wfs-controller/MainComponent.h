@@ -6,7 +6,7 @@
 // you could `#include <JuceHeader.h>` here instead, to make all your module headers visible.
 #include <JuceHeader.h>
 #include "XYController.h"
-#include <jack/jack.h>
+#include "JackConnector.h"
 
 //==============================================================================
 /*
@@ -48,6 +48,8 @@ private:
     juce::TextButton settingsButton;
     SafePointer <DialogWindow> settingsWindow;
 
+    juce::TextButton connectToModulesButton;
+
     juce::AudioFormatManager formatManager;
     std::unique_ptr<juce::AudioFormatReaderSource> readerSource;
     std::vector<std::unique_ptr<juce::AudioTransportSource>> transportSources;
@@ -56,6 +58,8 @@ private:
 
     XYController xyController;
     OwnedArray<ComboBox> moduleSelectors;
+
+    JackConnector jack;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 

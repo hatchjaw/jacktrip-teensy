@@ -52,7 +52,7 @@ juce_add_gui_app(WfsController
 # include all your JUCE module headers; if you're happy to include module headers directly, you
 # probably don't need to call this.
 
- juce_generate_juce_header(WfsController)
+juce_generate_juce_header(WfsController)
 
 # `target_sources` adds source files to a target. We pass the target that needs the sources as the
 # first argument, then a visibility parameter for the sources which should normally be PRIVATE.
@@ -64,7 +64,8 @@ target_sources(WfsController
         Main.cpp
         MainComponent.cpp
         WFSMessenger.cpp
-        XYController.cpp)
+        XYController.cpp
+        JackConnector.cpp)
 
 # `target_compile_definitions` adds some preprocessor definitions to our target. In a Projucer
 # project, these might be passed in the 'Preprocessor Definitions' field. JUCE modules also make use
@@ -101,7 +102,11 @@ target_link_libraries(WfsController
         juce::juce_gui_extra
         juce::juce_audio_utils
         juce::juce_osc
+#        juce::juce_audio_devices
+        jack
         PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags)
+
+#add_compile_definitions(JUCE_JACK=1 JUCE_JACK_CLIENT_NAME="${PROJECT_NAME}")
