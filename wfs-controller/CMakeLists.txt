@@ -102,11 +102,14 @@ target_link_libraries(WfsController
         juce::juce_gui_extra
         juce::juce_audio_utils
         juce::juce_osc
-#        juce::juce_audio_devices
+        juce::juce_audio_devices
         jack
         PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags)
 
-#add_compile_definitions(JUCE_JACK=1 JUCE_JACK_CLIENT_NAME="${PROJECT_NAME}")
+target_compile_definitions(WfsController
+        PUBLIC
+        JUCE_JACK=1
+        JUCE_JACK_CLIENT_NAME="${PROJECT_NAME}")

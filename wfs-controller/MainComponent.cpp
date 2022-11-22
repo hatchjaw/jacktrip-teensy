@@ -2,6 +2,7 @@
 
 //==============================================================================
 MainComponent::MainComponent(ValueTree &tree) :
+        mixer(std::make_unique<MixerAudioSource>()),
         valueTree(tree) {
 
     addAndMakeVisible(xyController);
@@ -43,13 +44,19 @@ MainComponent::MainComponent(ValueTree &tree) :
     setup.bufferSize = 32;
     auto &deviceTypes{deviceManager.getAvailableDeviceTypes()};
     for (auto type: deviceTypes) {
-        type->scanForDevices();
-        if (type->getDeviceNames().contains("JACK Audio Connection Kit", true)) {
-            setup.outputDeviceName = "JACK Audio Connection Kit";
-            break;
+        auto typeName{type->getTypeName()};
+        if (typeName == "JACK") {
+            deviceManager.setCurrentAudioDeviceType(typeName, true);
+            type->scanForDevices();
+            auto names{type->getDeviceNames()};
+            if (names.contains("system", true)) {
+                setup.outputDeviceName = "system";
+                // Should really check for an error string here.
+                auto result{deviceManager.setAudioDeviceSetup(setup, true)};
+                break;
+            }
         }
     }
-    deviceManager.setAudioDeviceSetup(setup, true);
 
     jack.connect();
 }
@@ -74,7 +81,7 @@ void MainComponent::resized() {
         );
     }
     settingsButton.setBounds(padding, bounds.getBottom() - padding - 20, 50, 20);
-    connectToModulesButton.setBounds(xyController.getRight() - 100, xyController.getY() - 25, 100, 20);
+    connectToModulesButton.setBounds(xyController.getRight() - 125, xyController.getY() - 25, 125, 20);
 }
 
 void MainComponent::showSettings() {
@@ -115,18 +122,16 @@ MainComponent::~MainComponent() {
 
 void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRateReported) {
     blockSize = samplesPerBlockExpected;
-    this->sampleRate = sampleRateReported;
-//    for (auto &source: transportSources) {
-//        source->prepareToPlay(samplesPerBlockExpected, sampleRate);
-//        source->setGain(.5f);
-//        source->setLooping(true);
-//    }
+    sampleRate = sampleRateReported;
+
+    mixer->prepareToPlay(samplesPerBlockExpected, sampleRateReported);
 }
 
 void MainComponent::releaseResources() {
     for (auto &source: transportSources) {
         source->releaseResources();
     }
+    mixer->releaseResources();
 }
 
 void MainComponent::getNextAudioBlock(const AudioSourceChannelInfo &bufferToFill) {
@@ -136,6 +141,8 @@ void MainComponent::getNextAudioBlock(const AudioSourceChannelInfo &bufferToFill
             source->getNextAudioBlock(bufferToFill);
         }
     }
+
+//    mixer->getNextAudioBlock(bufferToFill);
 }
 
 void MainComponent::addSource() {
@@ -150,14 +157,31 @@ void MainComponent::addSource() {
                     auto *reader = formatManager.createReaderFor(file);
 
                     if (reader != nullptr) {
-                        auto newSource = std::make_unique<juce::AudioFormatReaderSource>(reader, true);
+                        readerSource = std::make_unique<juce::AudioFormatReaderSource>(reader, true);
+                        readerSource->setLooping(true);
+
+//                        transport->setSource(newSource.get(), 0, nullptr, reader->sampleRate);
+//                        transport->setGain(.5f);
+//                        transport->setLooping(true);
+//                        transport->prepareToPlay(blockSize, sampleRate);
+//                        transport->start();
+//                        mixer->addInputSource(transport.get(), false);
+
                         transportSources.push_back(std::make_unique<AudioTransportSource>());
-                        transportSources.back()->setSource(newSource.get(), 0, nullptr, reader->sampleRate);
-                        transportSources.back()->prepareToPlay(blockSize, sampleRate);
-                        transportSources.back()->setGain(.5f);
-                        transportSources.back()->setLooping(true);
-                        transportSources.back()->start();
-                        readerSource = std::move(newSource);
+                        auto *transport{transportSources.back().get()};
+                        transport->setSource(readerSource.get(), 0, nullptr, reader->sampleRate);
+                        transport->setGain(.5f);
+                        transport->prepareToPlay(blockSize, sampleRate);
+                        transport->start();
+                        mixer->addInputSource(transport, false);
+
+//                        transportSources.back()->setSource(newSource.get(), 0, nullptr, reader->sampleRate);
+//                        transportSources.back()->prepareToPlay(blockSize, sampleRate);
+//                        transportSources.back()->setGain(.5f);
+//                        transportSources.back()->setLooping(true);
+//                        transportSources.back()->start();
+//                        mixer->addInputSource(transportSources.back().get(), false);
+//                        readerSource = std::move(newSource);
                     }
                 }
             }
@@ -165,8 +189,12 @@ void MainComponent::addSource() {
 }
 
 void MainComponent::removeSource() {
-    auto &source{transportSources.back()};
-    source->stop();
-    source->releaseResources();
-    transportSources.erase(transportSources.end());
+//    auto &source{transportSources.back()};
+//    source->stop();
+//    source->releaseResources();
+//    transportSources.erase(transportSources.end());
+
+    auto source{transportSources.end()};
+    mixer->removeInputSource(source->get());
+    transportSources.erase(source);
 }

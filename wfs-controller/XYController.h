@@ -30,7 +30,7 @@ protected:
             float x, y;
         };
     public:
-        explicit Node(Value val);
+        explicit Node(Value val, uint idx = 0);
 
         void paint(Graphics &g) override;
 
@@ -48,6 +48,7 @@ protected:
 
         static constexpr float NODE_WIDTH{50.f};
 
+        uint index{0};
         Value value{};
 
         friend class XYController;
@@ -58,6 +59,7 @@ protected:
 private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (XYController)
 
+//    std::map<int, std::unique_ptr<Node>> nodeMap;
     std::vector<std::unique_ptr<Node>> nodes;
 
     void createNode(Point<float> value);

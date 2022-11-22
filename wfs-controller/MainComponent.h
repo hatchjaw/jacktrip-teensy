@@ -53,6 +53,7 @@ private:
     juce::AudioFormatManager formatManager;
     std::unique_ptr<juce::AudioFormatReaderSource> readerSource;
     std::vector<std::unique_ptr<juce::AudioTransportSource>> transportSources;
+    std::unique_ptr<juce::MixerAudioSource> mixer;
 
     std::unique_ptr<juce::FileChooser> fileChooser;
 

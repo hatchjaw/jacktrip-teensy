@@ -44,7 +44,45 @@ void XYController::createNode(Point<float> position) {
     auto bounds{getBounds().toFloat()};
     Node::Value value{position.x / bounds.getWidth(), 1 - position.y / bounds.getHeight()};
 
-    nodes.push_back(std::make_unique<Node>(value));
+//    auto key = nodeMap.size();
+//    nodeMap.emplace(key, std::make_unique<Node>(value, key));
+//    auto *n = nodeMap.at(key).get();
+//    addAndMakeVisible(n);
+//    n->setBounds();
+//    n->onMove = [this](Node *nodeBeingMoved) {
+//        // Set node bounds here
+//        nodeBeingMoved->setBounds();
+//        // And do value change callback
+//        if (onValueChange != nullptr) {
+//            // THIS IS APPALLING.
+//            uint i{0};
+//            for (auto it = nodeMap.begin(); it != nodeMap.end(); ++it, ++i) {
+//                if (it->second.get() == nodeBeingMoved) {
+//                    onValueChange(i, {nodeBeingMoved->value.x, nodeBeingMoved->value.y});
+//                    return;
+//                }
+//            }
+//        }
+//    };
+//
+//    n->onRemove = [this](Node *nodeToRemove) {
+//        removeNode(nodeToRemove);
+//    };
+//
+//    if (onValueChange != nullptr) {
+//        onValueChange(key, {n->value.x, n->value.y});
+//    }
+//
+//    if (onAddNode != nullptr) {
+//        onAddNode();
+//    }
+//
+//    repaint(n->getBounds());
+//
+//    return;
+
+    auto key{nodes.size()};
+    nodes.push_back(std::make_unique<Node>(value, key));
     addAndMakeVisible(*nodes.back());
     auto node{nodes.back().get()};
     node->setBounds();
@@ -70,7 +108,7 @@ void XYController::createNode(Point<float> position) {
     };
 
     if (onValueChange != nullptr) {
-        onValueChange(nodes.size() - 1, {node->value.x, node->value.y});
+        onValueChange(key, {node->value.x, node->value.y});
     }
 
     if (onAddNode != nullptr) {
@@ -97,7 +135,7 @@ void XYController::removeNode(Component *const node) {
     }
 }
 
-XYController::Node::Node(Value val) : value(val) {}
+XYController::Node::Node(Value val, uint idx) : index(idx), value(val) {}
 
 void XYController::Node::paint(Graphics &g) {
 //    g.setColour(juce::Colours::grey);
@@ -108,7 +146,8 @@ void XYController::Node::paint(Graphics &g) {
     g.setColour(juce::Colours::steelblue.darker(.25));
     g.drawEllipse(getLocalBounds().withSizeKeepingCentre(getWidth() - 2, getHeight() - 2).toFloat(), 2.f);
     g.setColour(Colours::white);
-    g.drawFittedText(String(value.x, 2) + newLine + String(value.y, 2), getLocalBounds(), Justification::centred, 2);
+//    g.drawFittedText(String(value.x, 2) + newLine + String(value.y, 2), getLocalBounds(), Justification::centred, 2);
+    g.drawText(String(index + 1), getLocalBounds(), Justification::centred, 1);
 }
 
 void XYController::Node::mouseDown(const MouseEvent &event) {
