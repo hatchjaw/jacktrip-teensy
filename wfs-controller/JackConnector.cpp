@@ -18,25 +18,46 @@ JackConnector::~JackConnector() {
 }
 
 void JackConnector::connect() {
-    const char **inPorts, **outPorts;
-
+    // Disconnect from (automatically connected) system output.
     jack_disconnect(client, JUCE_JACK_CLIENT_NAME ":out_1", "system:playback_1");
     jack_disconnect(client, JUCE_JACK_CLIENT_NAME ":out_2", "system:playback_2");
 
+    const char **inPorts, **outPorts;
+
+    // Get available jacktrip output devices (i.e. those with input ports);
+    char inPattern[50], outPattern[50]; // Agh
+    sprintf(inPattern, JACKTRIP_IN_PORT_FORMAT, 1);
+    outputDevices = jack_get_ports(client, inPattern, nullptr, JackPortIsInput);
+
+    // Connect each output of this app to the corresponding input for each
+    // JackTrip client.
     auto i{1};
     do {
-        char outPattern[50], inPattern[50];
-        sprintf(outPattern, OUT_PORT_PATTERN, i);
-        sprintf(inPattern, IN_PORT_PATTERN, i);
+        sprintf(outPattern, WFS_OUT_PORT_FORMAT, i);
+        sprintf(inPattern, JACKTRIP_IN_PORT_FORMAT, i);
         outPorts = jack_get_ports(client, outPattern, nullptr, JackPortIsOutput);
         inPorts = jack_get_ports(client, inPattern, nullptr, JackPortIsInput);
+
         for (int ch = 0; outPorts && inPorts && inPorts[ch] != nullptr; ch++) {
-//            fprintf(stdout, "Connecting %s to %s\n", outputPorts[0], inputPorts[ch]);
-            // Should really check whether ports are already connected.
+            DBG("Connecting " << outPorts[0] << " to " << inPorts[ch]);
+            // Should check whether ports are already connected.
             jack_connect(client, outPorts[0], inPorts[ch]);
         }
         jack_free(outPorts);
         jack_free(inPorts);
         ++i;
-    } while (outPorts);
+    } while (outPorts != nullptr);
+}
+
+StringArray JackConnector::getJackTripClients() {
+    StringArray clients{};
+    for (int i = 0; outputDevices && outputDevices[i] != nullptr; ++i) {
+        // Quick/dirty extraction of an IP from jack port name of the form:
+        // __ffff_<IP>:<send|receive>_n
+        auto device = String{outputDevices[i]}
+                .upToFirstOccurrenceOf(":", false, true)
+                .fromLastOccurrenceOf("_", false, true);
+        clients.add(device);
+    }
+    return clients;
 }

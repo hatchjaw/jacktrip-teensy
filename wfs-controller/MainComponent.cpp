@@ -5,37 +5,6 @@ MainComponent::MainComponent(ValueTree &tree) :
         mixer(std::make_unique<MixerAudioSource>()),
         valueTree(tree) {
 
-    addAndMakeVisible(xyController);
-    xyController.onValueChange = [this](uint nodeIndex, Point<float> position) {
-        valueTree.setProperty("/source/" + String{nodeIndex} + "/x", position.x, nullptr);
-        valueTree.setProperty("/source/" + String{nodeIndex} + "/y", position.y, nullptr);
-    };
-    xyController.onAddNode = [this] { addSource(); };
-    xyController.onRemoveNode = [this] { removeSource(); };
-
-    for (uint i = 0; i < NUM_MODULES; ++i) {
-        auto cb{new ComboBox};
-        addAndMakeVisible(cb);
-        cb->addItemList(TEENSY_IPS, 1);
-        cb->onChange = [this, i] {
-            auto ip{TEENSY_IPS[moduleSelectors[i]->getSelectedId() - 1]};
-            valueTree.setProperty("/module/" + String(i), ip, nullptr);
-        };
-        moduleSelectors.add(cb);
-    }
-
-    addAndMakeVisible(settingsButton);
-    settingsButton.setButtonText("Settings");
-    settingsButton.onClick = [this] { showSettings(); };
-
-    addAndMakeVisible(connectToModulesButton);
-    connectToModulesButton.setButtonText("Connect to modules");
-    connectToModulesButton.onClick = [this] { jack.connect(); };
-
-    setSize(800, 800);
-
-    formatManager.registerBasicFormats();
-
     setAudioChannels(0, 2);
 
     // Use JACK for output
@@ -58,7 +27,57 @@ MainComponent::MainComponent(ValueTree &tree) :
         }
     }
 
+    addAndMakeVisible(xyController);
+    xyController.onValueChange = [this](uint nodeIndex, Point<float> position) {
+        valueTree.setProperty("/source/" + String{nodeIndex} + "/x", position.x, nullptr);
+        valueTree.setProperty("/source/" + String{nodeIndex} + "/y", position.y, nullptr);
+    };
+    xyController.onAddNode = [this] { addSource(); };
+    xyController.onRemoveNode = [this] { removeSource(); };
+
+    for (uint i = 0; i < NUM_MODULES; ++i) {
+        auto cb{new ComboBox};
+        addAndMakeVisible(cb);
+        cb->onChange = [this, cb, i] {
+            auto ip{cb->getText()};
+            DBG("setting property: /module/" + String(i) + ": " + ip);
+            valueTree.setProperty("/module/" + String(i), ip, nullptr);
+        };
+        moduleSelectors.add(cb);
+    }
+
+    addAndMakeVisible(settingsButton);
+    settingsButton.setButtonText("Settings");
+    settingsButton.onClick = [this] { showSettings(); };
+
+    addAndMakeVisible(connectToModulesButton);
+    connectToModulesButton.setButtonText("Refresh ports");
+    connectToModulesButton.onClick = [this] { refreshPorts(); };
+
+    setSize(800, 800);
+
+    formatManager.registerBasicFormats();
+
+    refreshPorts();
+}
+
+void MainComponent::refreshPorts() {
     jack.connect();
+    auto clients{jack.getJackTripClients()};
+    // Update the module selector lists.
+    for (auto *selector: moduleSelectors) {
+        // Cache the current value.
+        auto text{selector->getText()};
+        // Refresh the list
+        selector->clear();
+        selector->addItemList(clients, 1);
+        // Try to restore the old value.
+        for (int i = 0; i < clients.size(); ++i) {
+            if (clients[i] == text) {
+                selector->setSelectedItemIndex(i);
+            }
+        }
+    }
 }
 
 //==============================================================================
@@ -81,7 +100,7 @@ void MainComponent::resized() {
         );
     }
     settingsButton.setBounds(padding, bounds.getBottom() - padding - 20, 50, 20);
-    connectToModulesButton.setBounds(xyController.getRight() - 125, xyController.getY() - 25, 125, 20);
+    connectToModulesButton.setBounds(xyController.getRight() - 100, xyController.getY() - 25, 100, 20);
 }
 
 void MainComponent::showSettings() {

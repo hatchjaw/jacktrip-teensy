@@ -20,11 +20,16 @@ public:
      * Connect this app to all available jacktrip clients.
      */
     void connect();
+
+    StringArray getJackTripClients();
+
 private:
-    const char *OUT_PORT_PATTERN{"^" JUCE_JACK_CLIENT_NAME ":out_%d$"};
-    const char *IN_PORT_PATTERN{"^_{2}f{4}_([0-9]{1,3}\.?){4}:send_%d$"};
+    static const uint NUM_MODULES{8}, IP_ADDRESS_BYTES{15};
+    const char *WFS_OUT_PORT_FORMAT{"^" JUCE_JACK_CLIENT_NAME ":out_%d$"};
+    const char *JACKTRIP_IN_PORT_FORMAT{"^_{2}f{4}_([0-9]{1,3}\.?){4}:send_%d$"};
     const char *CLIENT_NAME{"wfs_connector"};
     jack_client_t *client;
+    const char **outputDevices{nullptr};
 };
 
 

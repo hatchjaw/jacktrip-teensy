@@ -74,4 +74,6 @@ private:
 
     int blockSize{0};
     double sampleRate{0.};
+
+    void refreshPorts();
 };
