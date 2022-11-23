@@ -21,7 +21,7 @@ public:
 
     std::function<void()> onAddNode;
 
-    std::function<void()> onRemoveNode;
+    std::function<void(uint nodeIndex)> onRemoveNode;
 
 protected:
     class Node : public Component {
@@ -66,7 +66,7 @@ private:
 
     void normalisePosition(Point<float> &position);
 
-    void removeNode(Component *node);
+    void removeNode(Node *node);
 };
 
 

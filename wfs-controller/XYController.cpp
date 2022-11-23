@@ -123,12 +123,12 @@ void XYController::normalisePosition(Point<float> &position) {
     position.y = 1 - position.y / static_cast<float>(getHeight());
 }
 
-void XYController::removeNode(Component *const node) {
+void XYController::removeNode(Node *const node) {
     for (auto it = nodes.begin(); it < nodes.end(); ++it) {
         if (it->get() == node) {
             nodes.erase(it);
             if (onRemoveNode != nullptr) {
-                onRemoveNode();
+                onRemoveNode(node->index);
             }
             return;
         }

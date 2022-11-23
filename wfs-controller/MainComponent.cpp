@@ -2,9 +2,11 @@
 
 //==============================================================================
 MainComponent::MainComponent(ValueTree &tree) :
-        mixer(std::make_unique<MixerAudioSource>()),
+        multiChannelSource(std::make_unique<MultiChannelAudioSource>()),
         valueTree(tree) {
 
+    // TODO: generalise this -- use a compiler flag? Shared with teensies?
+    // TODO: use this in MultiChannelAudioSource?
     setAudioChannels(0, 2);
 
     // Use JACK for output
@@ -33,7 +35,7 @@ MainComponent::MainComponent(ValueTree &tree) :
         valueTree.setProperty("/source/" + String{nodeIndex} + "/y", position.y, nullptr);
     };
     xyController.onAddNode = [this] { addSource(); };
-    xyController.onRemoveNode = [this] { removeSource(); };
+    xyController.onRemoveNode = [this](uint nodeIndex) { removeSource(nodeIndex); };
 
     for (uint i = 0; i < NUM_MODULES; ++i) {
         auto cb{new ComboBox};
@@ -55,8 +57,6 @@ MainComponent::MainComponent(ValueTree &tree) :
     connectToModulesButton.onClick = [this] { refreshPorts(); };
 
     setSize(800, 800);
-
-    formatManager.registerBasicFormats();
 
     refreshPorts();
 }
@@ -140,28 +140,32 @@ MainComponent::~MainComponent() {
 }
 
 void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRateReported) {
-    blockSize = samplesPerBlockExpected;
-    sampleRate = sampleRateReported;
-
-    mixer->prepareToPlay(samplesPerBlockExpected, sampleRateReported);
+//    blockSize = samplesPerBlockExpected;
+//    sampleRate = sampleRateReported;
+//
+//    mixer->prepareToPlay(samplesPerBlockExpected, sampleRateReported);
+    multiChannelSource->prepareToPlay(samplesPerBlockExpected, sampleRateReported);
 }
 
 void MainComponent::releaseResources() {
-    for (auto &source: transportSources) {
-        source->releaseResources();
-    }
-    mixer->releaseResources();
+//    for (auto &source: transportSources) {
+//        source->releaseResources();
+//    }
+//    mixer->releaseResources();
+    multiChannelSource->releaseResources();
 }
 
 void MainComponent::getNextAudioBlock(const AudioSourceChannelInfo &bufferToFill) {
     // TODO: each source occupies a channel; fix the panning accordingly.
-    for (auto &source: transportSources) {
-        if (source->isPlaying()) {
-            source->getNextAudioBlock(bufferToFill);
-        }
-    }
-
+//    for (auto &source: transportSources) {
+//        if (source->isPlaying()) {
+//            source->getNextAudioBlock(bufferToFill);
+//        }
+//    }
+//    const ScopedLock sl{lock};
 //    mixer->getNextAudioBlock(bufferToFill);
+
+    multiChannelSource->getNextAudioBlock(bufferToFill);
 }
 
 void MainComponent::addSource() {
@@ -173,47 +177,21 @@ void MainComponent::addSource() {
             [this](const FileChooser &chooser) {
                 auto file = chooser.getResult();
                 if (file != File{}) {
-                    auto *reader = formatManager.createReaderFor(file);
-
-                    if (reader != nullptr) {
-                        readerSource = std::make_unique<juce::AudioFormatReaderSource>(reader, true);
-                        readerSource->setLooping(true);
-
-//                        transport->setSource(newSource.get(), 0, nullptr, reader->sampleRate);
-//                        transport->setGain(.5f);
-//                        transport->setLooping(true);
-//                        transport->prepareToPlay(blockSize, sampleRate);
-//                        transport->start();
-//                        mixer->addInputSource(transport.get(), false);
-
-                        transportSources.push_back(std::make_unique<AudioTransportSource>());
-                        auto *transport{transportSources.back().get()};
-                        transport->setSource(readerSource.get(), 0, nullptr, reader->sampleRate);
-                        transport->setGain(.5f);
-                        transport->prepareToPlay(blockSize, sampleRate);
-                        transport->start();
-                        mixer->addInputSource(transport, false);
-
-//                        transportSources.back()->setSource(newSource.get(), 0, nullptr, reader->sampleRate);
-//                        transportSources.back()->prepareToPlay(blockSize, sampleRate);
-//                        transportSources.back()->setGain(.5f);
-//                        transportSources.back()->setLooping(true);
-//                        transportSources.back()->start();
-//                        mixer->addInputSource(transportSources.back().get(), false);
-//                        readerSource = std::move(newSource);
-                    }
+                    multiChannelSource->addSource(file);
+                    multiChannelSource->start();
                 }
             }
     );
 }
 
-void MainComponent::removeSource() {
+void MainComponent::removeSource(uint sourceIndex) {
 //    auto &source{transportSources.back()};
 //    source->stop();
 //    source->releaseResources();
 //    transportSources.erase(transportSources.end());
 
-    auto source{transportSources.end()};
-    mixer->removeInputSource(source->get());
-    transportSources.erase(source);
+//    auto source{transportSources[sourceIndex].get()};//.end()};
+//    mixer->removeInputSource(source);
+//    transportSources.erase(sourceIndex);
+    multiChannelSource->removeSource(sourceIndex);
 }

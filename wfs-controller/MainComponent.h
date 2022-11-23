@@ -7,6 +7,7 @@
 #include <JuceHeader.h>
 #include "XYController.h"
 #include "JackConnector.h"
+#include "MultiChannelAudioSource.h"
 
 //==============================================================================
 /*
@@ -45,15 +46,25 @@ private:
             "192.168.10.156", // 8
     };
 
+    void addSource();
+
+    void removeSource(uint sourceIndex);
+
+    void refreshPorts();
+
+    void showSettings();
+
     juce::TextButton settingsButton;
     SafePointer <DialogWindow> settingsWindow;
 
     juce::TextButton connectToModulesButton;
 
-    juce::AudioFormatManager formatManager;
-    std::unique_ptr<juce::AudioFormatReaderSource> readerSource;
-    std::vector<std::unique_ptr<juce::AudioTransportSource>> transportSources;
-    std::unique_ptr<juce::MixerAudioSource> mixer;
+//    juce::AudioFormatManager formatManager;
+//    std::unique_ptr<juce::AudioFormatReaderSource> readerSource;
+//    std::vector<std::unique_ptr<juce::AudioTransportSource>> transportSources;
+//    std::unique_ptr<juce::MixerAudioSource> mixer;
+
+    std::unique_ptr<MultiChannelAudioSource> multiChannelSource;
 
     std::unique_ptr<juce::FileChooser> fileChooser;
 
@@ -62,18 +73,10 @@ private:
 
     JackConnector jack;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
-
-    void showSettings();
-
     ValueTree &valueTree;
 
-    void addSource();
 
-    void removeSource();
+//    CriticalSection lock;
 
-    int blockSize{0};
-    double sampleRate{0.};
-
-    void refreshPorts();
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };
