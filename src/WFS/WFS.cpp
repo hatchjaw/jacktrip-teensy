@@ -9857,10 +9857,18 @@ class mydsp : public dsp {
 	float fRec4[2];
 	float fRec5[3];
 	float fVec1[2048];
-	float fRec6[3];
+	FAUSTFLOAT fHslider5;
+	float fRec6[2];
+	FAUSTFLOAT fHslider6;
+	float fRec7[2];
+	float fRec8[3];
 	float fVec2[2048];
-	float fRec7[3];
+	float fRec9[3];
 	float fVec3[2048];
+	float fRec10[3];
+	float fVec4[2048];
+	float fRec11[3];
+	float fVec5[2048];
 	
  public:
 	
@@ -9904,7 +9912,7 @@ class mydsp : public dsp {
 	}
 
 	virtual int getNumInputs() {
-		return 2;
+		return 3;
 	}
 	virtual int getNumOutputs() {
 		return 2;
@@ -9929,6 +9937,8 @@ class mydsp : public dsp {
 		fHslider2 = FAUSTFLOAT(0.0f);
 		fHslider3 = FAUSTFLOAT(0.0f);
 		fHslider4 = FAUSTFLOAT(0.0f);
+		fHslider5 = FAUSTFLOAT(0.0f);
+		fHslider6 = FAUSTFLOAT(0.0f);
 	}
 	
 	virtual void instanceClear() {
@@ -9957,17 +9967,35 @@ class mydsp : public dsp {
 		for (int l7 = 0; l7 < 2048; l7 = l7 + 1) {
 			fVec1[l7] = 0.0f;
 		}
-		for (int l8 = 0; l8 < 3; l8 = l8 + 1) {
+		for (int l8 = 0; l8 < 2; l8 = l8 + 1) {
 			fRec6[l8] = 0.0f;
 		}
-		for (int l9 = 0; l9 < 2048; l9 = l9 + 1) {
-			fVec2[l9] = 0.0f;
+		for (int l9 = 0; l9 < 2; l9 = l9 + 1) {
+			fRec7[l9] = 0.0f;
 		}
 		for (int l10 = 0; l10 < 3; l10 = l10 + 1) {
-			fRec7[l10] = 0.0f;
+			fRec8[l10] = 0.0f;
 		}
 		for (int l11 = 0; l11 < 2048; l11 = l11 + 1) {
-			fVec3[l11] = 0.0f;
+			fVec2[l11] = 0.0f;
+		}
+		for (int l12 = 0; l12 < 3; l12 = l12 + 1) {
+			fRec9[l12] = 0.0f;
+		}
+		for (int l13 = 0; l13 < 2048; l13 = l13 + 1) {
+			fVec3[l13] = 0.0f;
+		}
+		for (int l14 = 0; l14 < 3; l14 = l14 + 1) {
+			fRec10[l14] = 0.0f;
+		}
+		for (int l15 = 0; l15 < 2048; l15 = l15 + 1) {
+			fVec4[l15] = 0.0f;
+		}
+		for (int l16 = 0; l16 < 3; l16 = l16 + 1) {
+			fRec11[l16] = 0.0f;
+		}
+		for (int l17 = 0; l17 < 2048; l17 = l17 + 1) {
+			fVec5[l17] = 0.0f;
 		}
 	}
 	
@@ -9991,10 +10019,12 @@ class mydsp : public dsp {
 	
 	virtual void buildUserInterface(UI* ui_interface) {
 		ui_interface->openVerticalBox("Distributed WFS");
-		ui_interface->addHorizontalSlider("0/x", &fHslider4, FAUSTFLOAT(0.0f), FAUSTFLOAT(0.0f), FAUSTFLOAT(1.0f), FAUSTFLOAT(0.001f));
-		ui_interface->addHorizontalSlider("0/y", &fHslider3, FAUSTFLOAT(0.0f), FAUSTFLOAT(0.0f), FAUSTFLOAT(1.0f), FAUSTFLOAT(0.001f));
-		ui_interface->addHorizontalSlider("1/x", &fHslider2, FAUSTFLOAT(0.0f), FAUSTFLOAT(0.0f), FAUSTFLOAT(1.0f), FAUSTFLOAT(0.001f));
-		ui_interface->addHorizontalSlider("1/y", &fHslider0, FAUSTFLOAT(0.0f), FAUSTFLOAT(0.0f), FAUSTFLOAT(1.0f), FAUSTFLOAT(0.001f));
+		ui_interface->addHorizontalSlider("0/x", &fHslider6, FAUSTFLOAT(0.0f), FAUSTFLOAT(0.0f), FAUSTFLOAT(1.0f), FAUSTFLOAT(0.001f));
+		ui_interface->addHorizontalSlider("0/y", &fHslider5, FAUSTFLOAT(0.0f), FAUSTFLOAT(0.0f), FAUSTFLOAT(1.0f), FAUSTFLOAT(0.001f));
+		ui_interface->addHorizontalSlider("1/x", &fHslider4, FAUSTFLOAT(0.0f), FAUSTFLOAT(0.0f), FAUSTFLOAT(1.0f), FAUSTFLOAT(0.001f));
+		ui_interface->addHorizontalSlider("1/y", &fHslider3, FAUSTFLOAT(0.0f), FAUSTFLOAT(0.0f), FAUSTFLOAT(1.0f), FAUSTFLOAT(0.001f));
+		ui_interface->addHorizontalSlider("2/x", &fHslider2, FAUSTFLOAT(0.0f), FAUSTFLOAT(0.0f), FAUSTFLOAT(1.0f), FAUSTFLOAT(0.001f));
+		ui_interface->addHorizontalSlider("2/y", &fHslider0, FAUSTFLOAT(0.0f), FAUSTFLOAT(0.0f), FAUSTFLOAT(1.0f), FAUSTFLOAT(0.001f));
 		ui_interface->addHorizontalSlider("moduleID", &fHslider1, FAUSTFLOAT(0.0f), FAUSTFLOAT(0.0f), FAUSTFLOAT(7.0f), FAUSTFLOAT(1.0f));
 		ui_interface->closeBox();
 	}
@@ -10002,6 +10032,7 @@ class mydsp : public dsp {
 	virtual void compute(int count, FAUSTFLOAT** RESTRICT inputs, FAUSTFLOAT** RESTRICT outputs) {
 		FAUSTFLOAT* input0 = inputs[0];
 		FAUSTFLOAT* input1 = inputs[1];
+		FAUSTFLOAT* input2 = inputs[2];
 		FAUSTFLOAT* output0 = outputs[0];
 		FAUSTFLOAT* output1 = outputs[1];
 		float fSlow0 = fConst1 * float(fHslider0);
@@ -10010,7 +10041,9 @@ class mydsp : public dsp {
 		float fSlow3 = fConst1 * float(fHslider2);
 		float fSlow4 = fConst1 * float(fHslider3);
 		float fSlow5 = fConst1 * float(fHslider4);
-		float fSlow6 = 0.23f * (2.0f * fSlow1 + 1.0f);
+		float fSlow6 = fConst1 * float(fHslider5);
+		float fSlow7 = fConst1 * float(fHslider6);
+		float fSlow8 = 0.23f * (2.0f * fSlow1 + 1.0f);
 		for (int i0 = 0; i0 < count; i0 = i0 + 1) {
 			fRec0[0] = fSlow0 + fConst2 * fRec0[1];
 			float fTemp0 = 1e+01f * fRec0[0];
@@ -10024,7 +10057,7 @@ class mydsp : public dsp {
 			float fTemp7 = std::tan(fConst4 * (1.5e+04f * fTemp6 + 5e+03f));
 			float fTemp8 = 1.0f / fTemp7;
 			float fTemp9 = (fTemp8 + 1.4142135f) / fTemp7 + 1.0f;
-			float fTemp10 = float(input1[i0]);
+			float fTemp10 = float(input2[i0]);
 			fRec2[0] = fTemp10 * fTemp6 - (fRec2[2] * ((fTemp8 + -1.4142135f) / fTemp7 + 1.0f) + 2.0f * fRec2[1] * (1.0f - 1.0f / mydsp_faustpower2_f(fTemp7))) / fTemp9;
 			float fTemp11 = (fRec2[2] + fRec2[0] + 2.0f * fRec2[1]) / fTemp9;
 			fVec0[IOTA0 & 2047] = fTemp11;
@@ -10035,41 +10068,69 @@ class mydsp : public dsp {
 			fRec4[0] = fSlow5 + fConst2 * fRec4[1];
 			float fTemp15 = 3.68f * fRec4[0];
 			float fTemp16 = std::sqrt(mydsp_faustpower2_f(fTemp15 - fSlow2) + fTemp14);
-			float fTemp17 = mydsp_faustpower2_f(5.0f / (fTemp16 + 5.0f));
-			float fTemp18 = std::tan(fConst4 * (1.5e+04f * fTemp17 + 5e+03f));
-			float fTemp19 = 1.0f / fTemp18;
-			float fTemp20 = (fTemp19 + 1.4142135f) / fTemp18 + 1.0f;
-			float fTemp21 = float(input0[i0]);
-			fRec5[0] = fTemp21 * fTemp17 - (fRec5[2] * ((fTemp19 + -1.4142135f) / fTemp18 + 1.0f) + 2.0f * fRec5[1] * (1.0f - 1.0f / mydsp_faustpower2_f(fTemp18))) / fTemp20;
-			float fTemp22 = (fRec5[2] + fRec5[0] + 2.0f * fRec5[1]) / fTemp20;
-			fVec1[IOTA0 & 2047] = fTemp22;
-			float fTemp23 = fConst3 * (fTemp16 - fTemp13);
-			int iTemp24 = int(fTemp23);
-			float fTemp25 = std::floor(fTemp23);
-			output0[i0] = FAUSTFLOAT((fTemp4 - fTemp5) * fVec0[(IOTA0 - int(std::min<float>(fConst5, float(std::max<int>(0, iTemp12 + 1))))) & 2047] + fVec1[(IOTA0 - int(std::min<float>(fConst5, float(std::max<int>(0, iTemp24))))) & 2047] * (fTemp25 + (1.0f - fTemp23)) + (fTemp23 - fTemp25) * fVec1[(IOTA0 - int(std::min<float>(fConst5, float(std::max<int>(0, iTemp24 + 1))))) & 2047] + fVec0[(IOTA0 - int(std::min<float>(fConst5, float(std::max<int>(0, iTemp12))))) & 2047] * (fTemp5 + (1.0f - fTemp4)));
-			float fTemp26 = std::sqrt(fTemp1 + mydsp_faustpower2_f(fTemp2 - fSlow6));
-			float fTemp27 = fConst3 * (fTemp26 - fTemp0);
-			float fTemp28 = std::floor(fTemp27);
-			float fTemp29 = mydsp_faustpower2_f(5.0f / (fTemp26 + 5.0f));
-			float fTemp30 = std::tan(fConst4 * (1.5e+04f * fTemp29 + 5e+03f));
-			float fTemp31 = 1.0f / fTemp30;
-			float fTemp32 = (fTemp31 + 1.4142135f) / fTemp30 + 1.0f;
-			fRec6[0] = fTemp10 * fTemp29 - (fRec6[2] * ((fTemp31 + -1.4142135f) / fTemp30 + 1.0f) + 2.0f * fRec6[1] * (1.0f - 1.0f / mydsp_faustpower2_f(fTemp30))) / fTemp32;
-			float fTemp33 = (fRec6[2] + fRec6[0] + 2.0f * fRec6[1]) / fTemp32;
-			fVec2[IOTA0 & 2047] = fTemp33;
-			int iTemp34 = int(fTemp27);
-			float fTemp35 = std::sqrt(fTemp14 + mydsp_faustpower2_f(fTemp15 - fSlow6));
-			float fTemp36 = mydsp_faustpower2_f(5.0f / (fTemp35 + 5.0f));
-			float fTemp37 = std::tan(fConst4 * (1.5e+04f * fTemp36 + 5e+03f));
-			float fTemp38 = 1.0f / fTemp37;
-			float fTemp39 = (fTemp38 + 1.4142135f) / fTemp37 + 1.0f;
-			fRec7[0] = fTemp21 * fTemp36 - (fRec7[2] * ((fTemp38 + -1.4142135f) / fTemp37 + 1.0f) + 2.0f * fRec7[1] * (1.0f - 1.0f / mydsp_faustpower2_f(fTemp37))) / fTemp39;
-			float fTemp40 = (fRec7[2] + fRec7[0] + 2.0f * fRec7[1]) / fTemp39;
-			fVec3[IOTA0 & 2047] = fTemp40;
-			float fTemp41 = fConst3 * (fTemp35 - fTemp13);
-			int iTemp42 = int(fTemp41);
-			float fTemp43 = std::floor(fTemp41);
-			output1[i0] = FAUSTFLOAT((fTemp27 - fTemp28) * fVec2[(IOTA0 - int(std::min<float>(fConst5, float(std::max<int>(0, iTemp34 + 1))))) & 2047] + fVec3[(IOTA0 - int(std::min<float>(fConst5, float(std::max<int>(0, iTemp42))))) & 2047] * (fTemp43 + (1.0f - fTemp41)) + (fTemp41 - fTemp43) * fVec3[(IOTA0 - int(std::min<float>(fConst5, float(std::max<int>(0, iTemp42 + 1))))) & 2047] + fVec2[(IOTA0 - int(std::min<float>(fConst5, float(std::max<int>(0, iTemp34))))) & 2047] * (fTemp28 + (1.0f - fTemp27)));
+			float fTemp17 = fConst3 * (fTemp16 - fTemp13);
+			float fTemp18 = std::floor(fTemp17);
+			float fTemp19 = mydsp_faustpower2_f(5.0f / (fTemp16 + 5.0f));
+			float fTemp20 = std::tan(fConst4 * (1.5e+04f * fTemp19 + 5e+03f));
+			float fTemp21 = 1.0f / fTemp20;
+			float fTemp22 = (fTemp21 + 1.4142135f) / fTemp20 + 1.0f;
+			float fTemp23 = float(input1[i0]);
+			fRec5[0] = fTemp23 * fTemp19 - (fRec5[2] * ((fTemp21 + -1.4142135f) / fTemp20 + 1.0f) + 2.0f * fRec5[1] * (1.0f - 1.0f / mydsp_faustpower2_f(fTemp20))) / fTemp22;
+			float fTemp24 = (fRec5[2] + fRec5[0] + 2.0f * fRec5[1]) / fTemp22;
+			fVec1[IOTA0 & 2047] = fTemp24;
+			int iTemp25 = int(fTemp17);
+			fRec6[0] = fSlow6 + fConst2 * fRec6[1];
+			float fTemp26 = 1e+01f * fRec6[0];
+			float fTemp27 = mydsp_faustpower2_f(fTemp26);
+			fRec7[0] = fSlow7 + fConst2 * fRec7[1];
+			float fTemp28 = 3.68f * fRec7[0];
+			float fTemp29 = std::sqrt(mydsp_faustpower2_f(fTemp28 - fSlow2) + fTemp27);
+			float fTemp30 = mydsp_faustpower2_f(5.0f / (fTemp29 + 5.0f));
+			float fTemp31 = std::tan(fConst4 * (1.5e+04f * fTemp30 + 5e+03f));
+			float fTemp32 = 1.0f / fTemp31;
+			float fTemp33 = (fTemp32 + 1.4142135f) / fTemp31 + 1.0f;
+			float fTemp34 = float(input0[i0]);
+			fRec8[0] = fTemp34 * fTemp30 - (fRec8[2] * ((fTemp32 + -1.4142135f) / fTemp31 + 1.0f) + 2.0f * fRec8[1] * (1.0f - 1.0f / mydsp_faustpower2_f(fTemp31))) / fTemp33;
+			float fTemp35 = (fRec8[2] + fRec8[0] + 2.0f * fRec8[1]) / fTemp33;
+			fVec2[IOTA0 & 2047] = fTemp35;
+			float fTemp36 = fConst3 * (fTemp29 - fTemp26);
+			int iTemp37 = int(fTemp36);
+			float fTemp38 = std::floor(fTemp36);
+			output0[i0] = FAUSTFLOAT((fTemp4 - fTemp5) * fVec0[(IOTA0 - int(std::min<float>(fConst5, float(std::max<int>(0, iTemp12 + 1))))) & 2047] + (fTemp17 - fTemp18) * fVec1[(IOTA0 - int(std::min<float>(fConst5, float(std::max<int>(0, iTemp25 + 1))))) & 2047] + fVec2[(IOTA0 - int(std::min<float>(fConst5, float(std::max<int>(0, iTemp37))))) & 2047] * (fTemp38 + (1.0f - fTemp36)) + (fTemp36 - fTemp38) * fVec2[(IOTA0 - int(std::min<float>(fConst5, float(std::max<int>(0, iTemp37 + 1))))) & 2047] + fVec1[(IOTA0 - int(std::min<float>(fConst5, float(std::max<int>(0, iTemp25))))) & 2047] * (fTemp18 + (1.0f - fTemp17)) + fVec0[(IOTA0 - int(std::min<float>(fConst5, float(std::max<int>(0, iTemp12))))) & 2047] * (fTemp5 + (1.0f - fTemp4)));
+			float fTemp39 = std::sqrt(fTemp1 + mydsp_faustpower2_f(fTemp2 - fSlow8));
+			float fTemp40 = fConst3 * (fTemp39 - fTemp0);
+			float fTemp41 = std::floor(fTemp40);
+			float fTemp42 = mydsp_faustpower2_f(5.0f / (fTemp39 + 5.0f));
+			float fTemp43 = std::tan(fConst4 * (1.5e+04f * fTemp42 + 5e+03f));
+			float fTemp44 = 1.0f / fTemp43;
+			float fTemp45 = (fTemp44 + 1.4142135f) / fTemp43 + 1.0f;
+			fRec9[0] = fTemp10 * fTemp42 - (fRec9[2] * ((fTemp44 + -1.4142135f) / fTemp43 + 1.0f) + 2.0f * fRec9[1] * (1.0f - 1.0f / mydsp_faustpower2_f(fTemp43))) / fTemp45;
+			float fTemp46 = (fRec9[2] + fRec9[0] + 2.0f * fRec9[1]) / fTemp45;
+			fVec3[IOTA0 & 2047] = fTemp46;
+			int iTemp47 = int(fTemp40);
+			float fTemp48 = std::sqrt(fTemp14 + mydsp_faustpower2_f(fTemp15 - fSlow8));
+			float fTemp49 = fConst3 * (fTemp48 - fTemp13);
+			float fTemp50 = std::floor(fTemp49);
+			float fTemp51 = mydsp_faustpower2_f(5.0f / (fTemp48 + 5.0f));
+			float fTemp52 = std::tan(fConst4 * (1.5e+04f * fTemp51 + 5e+03f));
+			float fTemp53 = 1.0f / fTemp52;
+			float fTemp54 = (fTemp53 + 1.4142135f) / fTemp52 + 1.0f;
+			fRec10[0] = fTemp23 * fTemp51 - (fRec10[2] * ((fTemp53 + -1.4142135f) / fTemp52 + 1.0f) + 2.0f * fRec10[1] * (1.0f - 1.0f / mydsp_faustpower2_f(fTemp52))) / fTemp54;
+			float fTemp55 = (fRec10[2] + fRec10[0] + 2.0f * fRec10[1]) / fTemp54;
+			fVec4[IOTA0 & 2047] = fTemp55;
+			int iTemp56 = int(fTemp49);
+			float fTemp57 = std::sqrt(fTemp27 + mydsp_faustpower2_f(fTemp28 - fSlow8));
+			float fTemp58 = mydsp_faustpower2_f(5.0f / (fTemp57 + 5.0f));
+			float fTemp59 = std::tan(fConst4 * (1.5e+04f * fTemp58 + 5e+03f));
+			float fTemp60 = 1.0f / fTemp59;
+			float fTemp61 = (fTemp60 + 1.4142135f) / fTemp59 + 1.0f;
+			fRec11[0] = fTemp34 * fTemp58 - (fRec11[2] * ((fTemp60 + -1.4142135f) / fTemp59 + 1.0f) + 2.0f * fRec11[1] * (1.0f - 1.0f / mydsp_faustpower2_f(fTemp59))) / fTemp61;
+			float fTemp62 = (fRec11[2] + fRec11[0] + 2.0f * fRec11[1]) / fTemp61;
+			fVec5[IOTA0 & 2047] = fTemp62;
+			float fTemp63 = fConst3 * (fTemp57 - fTemp26);
+			int iTemp64 = int(fTemp63);
+			float fTemp65 = std::floor(fTemp63);
+			output1[i0] = FAUSTFLOAT((fTemp40 - fTemp41) * fVec3[(IOTA0 - int(std::min<float>(fConst5, float(std::max<int>(0, iTemp47 + 1))))) & 2047] + (fTemp49 - fTemp50) * fVec4[(IOTA0 - int(std::min<float>(fConst5, float(std::max<int>(0, iTemp56 + 1))))) & 2047] + fVec5[(IOTA0 - int(std::min<float>(fConst5, float(std::max<int>(0, iTemp64))))) & 2047] * (fTemp65 + (1.0f - fTemp63)) + (fTemp63 - fTemp65) * fVec5[(IOTA0 - int(std::min<float>(fConst5, float(std::max<int>(0, iTemp64 + 1))))) & 2047] + fVec4[(IOTA0 - int(std::min<float>(fConst5, float(std::max<int>(0, iTemp56))))) & 2047] * (fTemp50 + (1.0f - fTemp49)) + fVec3[(IOTA0 - int(std::min<float>(fConst5, float(std::max<int>(0, iTemp47))))) & 2047] * (fTemp41 + (1.0f - fTemp40)));
 			fRec0[1] = fRec0[0];
 			fRec1[1] = fRec1[0];
 			fRec2[2] = fRec2[1];
@@ -10079,10 +10140,16 @@ class mydsp : public dsp {
 			fRec4[1] = fRec4[0];
 			fRec5[2] = fRec5[1];
 			fRec5[1] = fRec5[0];
-			fRec6[2] = fRec6[1];
 			fRec6[1] = fRec6[0];
-			fRec7[2] = fRec7[1];
 			fRec7[1] = fRec7[0];
+			fRec8[2] = fRec8[1];
+			fRec8[1] = fRec8[0];
+			fRec9[2] = fRec9[1];
+			fRec9[1] = fRec9[0];
+			fRec10[2] = fRec10[1];
+			fRec10[1] = fRec10[0];
+			fRec11[2] = fRec11[1];
+			fRec11[1] = fRec11[0];
 		}
 	}
 
@@ -10093,22 +10160,26 @@ class mydsp : public dsp {
 	#define FAUST_FILE_NAME "WFS.dsp"
 	#define FAUST_CLASS_NAME "mydsp"
 	#define FAUST_COMPILATION_OPIONS "-a /usr/local/share/faust/teensy/teensy.cpp -lang cpp -i -es 1 -mcd 16 -uim -single -ftz 0"
-	#define FAUST_INPUTS 2
+	#define FAUST_INPUTS 3
 	#define FAUST_OUTPUTS 2
-	#define FAUST_ACTIVES 5
+	#define FAUST_ACTIVES 7
 	#define FAUST_PASSIVES 0
 
-	FAUST_ADDHORIZONTALSLIDER("0/x", fHslider4, 0.0f, 0.0f, 1.0f, 0.001f);
-	FAUST_ADDHORIZONTALSLIDER("0/y", fHslider3, 0.0f, 0.0f, 1.0f, 0.001f);
-	FAUST_ADDHORIZONTALSLIDER("1/x", fHslider2, 0.0f, 0.0f, 1.0f, 0.001f);
-	FAUST_ADDHORIZONTALSLIDER("1/y", fHslider0, 0.0f, 0.0f, 1.0f, 0.001f);
+	FAUST_ADDHORIZONTALSLIDER("0/x", fHslider6, 0.0f, 0.0f, 1.0f, 0.001f);
+	FAUST_ADDHORIZONTALSLIDER("0/y", fHslider5, 0.0f, 0.0f, 1.0f, 0.001f);
+	FAUST_ADDHORIZONTALSLIDER("1/x", fHslider4, 0.0f, 0.0f, 1.0f, 0.001f);
+	FAUST_ADDHORIZONTALSLIDER("1/y", fHslider3, 0.0f, 0.0f, 1.0f, 0.001f);
+	FAUST_ADDHORIZONTALSLIDER("2/x", fHslider2, 0.0f, 0.0f, 1.0f, 0.001f);
+	FAUST_ADDHORIZONTALSLIDER("2/y", fHslider0, 0.0f, 0.0f, 1.0f, 0.001f);
 	FAUST_ADDHORIZONTALSLIDER("moduleID", fHslider1, 0.0f, 0.0f, 7.0f, 1.0f);
 
 	#define FAUST_LIST_ACTIVES(p) \
-		p(HORIZONTALSLIDER, 0/x, "0/x", fHslider4, 0.0f, 0.0f, 1.0f, 0.001f) \
-		p(HORIZONTALSLIDER, 0/y, "0/y", fHslider3, 0.0f, 0.0f, 1.0f, 0.001f) \
-		p(HORIZONTALSLIDER, 1/x, "1/x", fHslider2, 0.0f, 0.0f, 1.0f, 0.001f) \
-		p(HORIZONTALSLIDER, 1/y, "1/y", fHslider0, 0.0f, 0.0f, 1.0f, 0.001f) \
+		p(HORIZONTALSLIDER, 0/x, "0/x", fHslider6, 0.0f, 0.0f, 1.0f, 0.001f) \
+		p(HORIZONTALSLIDER, 0/y, "0/y", fHslider5, 0.0f, 0.0f, 1.0f, 0.001f) \
+		p(HORIZONTALSLIDER, 1/x, "1/x", fHslider4, 0.0f, 0.0f, 1.0f, 0.001f) \
+		p(HORIZONTALSLIDER, 1/y, "1/y", fHslider3, 0.0f, 0.0f, 1.0f, 0.001f) \
+		p(HORIZONTALSLIDER, 2/x, "2/x", fHslider2, 0.0f, 0.0f, 1.0f, 0.001f) \
+		p(HORIZONTALSLIDER, 2/y, "2/y", fHslider0, 0.0f, 0.0f, 1.0f, 0.001f) \
 		p(HORIZONTALSLIDER, moduleID, "moduleID", fHslider1, 0.0f, 0.0f, 7.0f, 1.0f) \
 
 	#define FAUST_LIST_PASSIVES(p) \

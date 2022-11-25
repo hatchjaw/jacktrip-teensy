@@ -9,7 +9,7 @@ MultiChannelAudioSource::MultiChannelAudioSource() {
 }
 
 void MultiChannelAudioSource::prepareToPlay(int samplesPerBlockExpected, double sampleRateToUse) {
-    tempBuffer.setSize(2, samplesPerBlockExpected);
+    tempBuffer.setSize(NUM_AUDIO_SOURCES, samplesPerBlockExpected);
 
     const ScopedLock sl{lock};
 
@@ -22,11 +22,11 @@ void MultiChannelAudioSource::prepareToPlay(int samplesPerBlockExpected, double 
 void MultiChannelAudioSource::releaseResources() {
     const ScopedLock sl{lock};
 
-    for (auto *reader: sources) {
-        reader->releaseResources();
+    for (auto &source: sources) {
+        source.second->releaseResources();
     }
 
-    sources.clear(true);
+    sources.clear();
 
     tempBuffer.setSize(2, 0);
 
@@ -36,13 +36,14 @@ void MultiChannelAudioSource::releaseResources() {
 void MultiChannelAudioSource::getNextAudioBlock(const AudioSourceChannelInfo &bufferToFill) {
     const ScopedLock sl{lock};
 
-    if (!sources.isEmpty() && !stopped) {
-        for (int i = 0; i < sources.size(); ++i) {
-            auto writePointer = bufferToFill.buffer->getWritePointer(i);
+    if (!sources.empty() && !stopped) {
+        for (auto it = sources.begin(); it != sources.end(); ++it) {
+//        for (auto &source: sources) {
+            auto writePointer = bufferToFill.buffer->getWritePointer(static_cast<int>(it->first));
             // Set up a single-channel temp buffer
             tempBuffer.setDataToReferTo(&writePointer, 1, bufferToFill.buffer->getNumSamples());
             AudioSourceChannelInfo channelInfo(&tempBuffer, bufferToFill.startSample, bufferToFill.numSamples);
-            sources.getUnchecked(i)->getNextAudioBlock(channelInfo);
+            it->second->getNextAudioBlock(channelInfo);
         }
 
         if (!playing) {
@@ -56,9 +57,9 @@ void MultiChannelAudioSource::getNextAudioBlock(const AudioSourceChannelInfo &bu
                 bufferToFill.buffer->clear(bufferToFill.startSample + 256, bufferToFill.numSamples - 256);
         }
 
-        if (!sources.isEmpty()
-            && sources.getUnchecked(0)->getNextReadPosition() > sources.getUnchecked(0)->getTotalLength() + 1
-            && !sources.getUnchecked(0)->isLooping()) {
+        if (!sources.empty()
+            && sources.begin()->second->getNextReadPosition() > sources.begin()->second->getTotalLength() + 1
+            && !sources.begin()->second->isLooping()) {
             playing = false;
             sendChangeMessage();
         }
@@ -77,30 +78,30 @@ void MultiChannelAudioSource::getNextAudioBlock(const AudioSourceChannelInfo &bu
 }
 
 void MultiChannelAudioSource::setNextReadPosition(int64 newPosition) {
-    for (auto *reader: sources) {
-        reader->setNextReadPosition(newPosition);
+    for (auto &source: sources) {
+        source.second->setNextReadPosition(newPosition);
     }
 }
 
 int64 MultiChannelAudioSource::getNextReadPosition() const {
-    if (sources.isEmpty()) {
+    if (sources.empty()) {
         return 0;
     }
 
-    return sources.getUnchecked(0)->getNextReadPosition();
+    return sources.find(0)->second->getNextReadPosition();
 }
 
 int64 MultiChannelAudioSource::getTotalLength() const {
     const ScopedLock sl{lock};
 
-    if (sources.isEmpty()) {
+    if (sources.empty()) {
         return 0;
     }
 
     int64 length{0};
-    for (auto *reader: sources) {
-        if (reader->getTotalLength() > length) {
-            length = reader->getTotalLength();
+    for (auto &source: sources) {
+        if (source.second->getTotalLength() > length) {
+            length = source.second->getTotalLength();
         }
     }
     return length;
@@ -109,15 +110,15 @@ int64 MultiChannelAudioSource::getTotalLength() const {
 bool MultiChannelAudioSource::isLooping() const {
     const ScopedLock sl{lock};
 
-    return !sources.isEmpty() && sources.getUnchecked(0)->isLooping();
+    return !sources.empty() && sources.find(0)->second->isLooping();
 }
 
-void MultiChannelAudioSource::addSource(File &file) {
-    if (auto *source = formatManager.createReaderFor(file)) {
-        DBG("MultiChannelAudioSource: Adding source " << sources.size());
-        auto *reader = new juce::AudioFormatReaderSource(source, true);
-        reader->setLooping(true);
-        sources.add(reader);
+void MultiChannelAudioSource::addSource(uint index, File &file) {
+    if (auto *reader = formatManager.createReaderFor(file)) {
+        DBG("MultiChannelAudioSource: Adding source with ID " << sources.size());
+        auto source = std::make_unique<AudioFormatReaderSource>(reader, true);
+        source->setLooping(true);
+        sources.insert(std::make_pair(index, std::move(source)));
     } else {
         jassertfalse;
     }
@@ -126,20 +127,22 @@ void MultiChannelAudioSource::addSource(File &file) {
 void MultiChannelAudioSource::removeSource(uint index) {
     const ScopedLock sl{lock};
 
-    DBG("MultiChannelAudioSource: Removing source " << String(index));
+    DBG("MultiChannelAudioSource: Removing source with ID " << String(index));
 
-    auto idx = static_cast<int>(index);
-    // Come on, mate; release resources *then* remove.
-    sources.getUnchecked(idx)->releaseResources();
-    sources.remove(idx, true);
+    auto source{sources.find(index)};
+    if (source != sources.end()) {
+        source->second->releaseResources();
+        sources.erase(source);
+    }
 
-    if (sources.isEmpty()) {
+    if (sources.empty()) {
+        stopped = true;
         stop();
     }
 }
 
 void MultiChannelAudioSource::start() {
-    if (!sources.isEmpty() && !playing) {
+    if (!sources.empty() && !playing) {
         {
             const ScopedLock sl{lock};
             playing = true;

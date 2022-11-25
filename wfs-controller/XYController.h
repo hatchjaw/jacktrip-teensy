@@ -17,9 +17,17 @@ public:
 
     void resized() override;
 
+    /**
+     * Exposing this publicly is probably a bad idea, but it provides an easy
+     * way of rolling back the creation of a node if some important condition
+     * isn't satisfied.
+     * @param index
+     */
+    void removeNode(uint index);
+
     std::function<void(uint nodeIndex, Point<float>)> onValueChange;
 
-    std::function<void()> onAddNode;
+    std::function<void(uint nodeIndex)> onAddNode;
 
     std::function<void(uint nodeIndex)> onRemoveNode;
 
@@ -59,14 +67,21 @@ protected:
 private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (XYController)
 
-//    std::map<int, std::unique_ptr<Node>> nodes;
-    std::vector<std::unique_ptr<Node>> nodes;
+    std::unordered_map<uint, std::unique_ptr<Node>> nodes;
+//    std::vector<std::unique_ptr<Node>> nodes;
 
     void createNode(Point<float> value);
 
     void normalisePosition(Point<float> &position);
 
     void removeNode(Node *node);
+
+    uint getNextAvailableNodeID();
+
+    void removeAllNodes();
+
+    std::unordered_map<uint, std::unique_ptr<XYController::Node>>::iterator
+    removeNodeByIterator(std::unordered_map<uint, std::unique_ptr<XYController::Node>>::iterator it);
 };
 
 

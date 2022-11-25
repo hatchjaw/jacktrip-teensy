@@ -17,7 +17,7 @@ SPEAKERS_PER_MODULE = 2;
 // distance (m) between individual speakers: TODO: MEASURE AND ADJUST.
 SPEAKER_DIST = 0.23;
 // Number of sound sources (i.e. mono channels)
-N_SOURCES = 2;
+N_SOURCES = 3;
 
 // Set which speakers to control.
 moduleID = hslider("moduleID", 0, 0, (N_SPEAKERS / SPEAKERS_PER_MODULE) - 1, 1);

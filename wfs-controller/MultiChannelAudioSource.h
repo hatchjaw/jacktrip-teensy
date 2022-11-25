@@ -25,7 +25,7 @@ public:
 
     bool isLooping() const override;
 
-    void addSource(File &file);
+    void addSource(uint index, File &file);
 
     void removeSource(uint index);
 
@@ -35,8 +35,8 @@ public:
 
 private:
     AudioFormatManager formatManager;
-    OwnedArray<AudioFormatReaderSource, CriticalSection> sources;
-//    std::unordered_map<uint, std::unique_ptr<AudioFormatReaderSource>> sources;
+//    OwnedArray<AudioFormatReaderSource, CriticalSection> sources;
+    std::unordered_map<uint, std::unique_ptr<AudioFormatReaderSource>> sources;
     AudioBuffer<float> tempBuffer;
 
     CriticalSection lock;

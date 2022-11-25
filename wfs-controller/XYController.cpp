@@ -19,7 +19,7 @@ void XYController::paint(Graphics &g) {
 
 void XYController::resized() {
     for (auto &node: nodes) {
-        node->setBounds();
+        node.second->setBounds();
     }
 }
 
@@ -29,10 +29,15 @@ void XYController::mouseDown(const MouseEvent &event) {
         PopupMenu m;
         if (event.originalComponent == this) {
             m.addItem(1, "Create node");
+            if (!nodes.empty()) {
+                m.addItem(2, "Remove all nodes");
+            }
             m.showMenuAsync(PopupMenu::Options(), [this, event](int result) {
                 if (result == 1) {
                     // Find position centered on the location of the click.
                     createNode(event.position);
+                } else if (result == 2) {
+                    removeAllNodes();
                 }
             });
         }
@@ -44,11 +49,11 @@ void XYController::createNode(Point<float> position) {
     auto bounds{getBounds().toFloat()};
     Node::Value value{position.x / bounds.getWidth(), 1 - position.y / bounds.getHeight()};
 
-    auto key{nodes.size()};
-    DBG("XYController: Adding node " << String(key));
-    nodes.push_back(std::make_unique<Node>(value, key));
-    addAndMakeVisible(*nodes.back());
-    auto node{nodes.back().get()};
+    auto key{getNextAvailableNodeID()};
+    DBG("XYController: Adding node with ID " << String(key));
+    nodes[key] = std::make_unique<Node>(value, key);
+    auto *node{nodes[key].get()};
+    addAndMakeVisible(node);
     node->setBounds();
 
     node->onMove = [this](Node *nodeBeingMoved) {
@@ -56,11 +61,10 @@ void XYController::createNode(Point<float> position) {
         nodeBeingMoved->setBounds();
         // And do value change callback
         if (onValueChange != nullptr) {
-            // THIS IS APPALLING.
-            uint i{0};
-            for (auto it = nodes.begin(); it < nodes.end(); ++it, ++i) {
-                if (it->get() == nodeBeingMoved) {
-                    onValueChange(i, {nodeBeingMoved->value.x, nodeBeingMoved->value.y});
+            // This isn't nice.
+            for (auto it = nodes.begin(); it != nodes.end(); ++it) {
+                if (it->second.get() == nodeBeingMoved) {
+                    onValueChange(it->first, {nodeBeingMoved->value.x, nodeBeingMoved->value.y});
                     return;
                 }
             }
@@ -76,7 +80,7 @@ void XYController::createNode(Point<float> position) {
     }
 
     if (onAddNode != nullptr) {
-        onAddNode();
+        onAddNode(key);
     }
 
     repaint(node->getBounds());
@@ -88,27 +92,52 @@ void XYController::normalisePosition(Point<float> &position) {
 }
 
 void XYController::removeNode(Node *const node) {
-    for (auto it = nodes.begin(); it < nodes.end(); ++it) {
-        if (it->get() == node) {
-            nodes.erase(it);
-            if (onRemoveNode != nullptr) {
-                DBG("XYController: Removing node " << String(node->index));
-                onRemoveNode(node->index);
-            }
+    for (auto it = nodes.begin(); it != nodes.end(); ++it) {
+        if (it->second.get() == node) {
+            removeNodeByIterator(it);
             return;
         }
     }
 }
 
+void XYController::removeAllNodes() {
+    auto it{nodes.begin()};
+    while (it != nodes.end()) {
+        it = removeNodeByIterator(it);
+    }
+}
+
+std::unordered_map<uint, std::unique_ptr<XYController::Node>>::iterator
+XYController::removeNodeByIterator(std::unordered_map<uint, std::unique_ptr<XYController::Node>>::iterator it) {
+    auto index{it->first};
+    it = nodes.erase(it);
+    if (onRemoveNode != nullptr) {
+        DBG("XYController: Removing node with ID " << String(index));
+        onRemoveNode(index);
+    }
+    return it;
+}
+
+uint XYController::getNextAvailableNodeID() {
+    uint nextID{0};
+    while (nodes.find(nextID) != nodes.end()) { nextID++; }
+    return nextID;
+}
+
+void XYController::removeNode(uint index) {
+    nodes.erase(index);
+}
+
 XYController::Node::Node(Value val, uint idx) : index(idx), value(val) {}
 
 void XYController::Node::paint(Graphics &g) {
-    g.setColour(juce::Colours::steelblue);
+    auto colour{juce::Colours::steelblue.withRotatedHue(static_cast<float>(index) * 1/juce::MathConstants<float>::twoPi)};
+    g.setColour(colour);
     g.fillEllipse(getLocalBounds().toFloat());
-    g.setColour(juce::Colours::steelblue.darker(.25));
+    g.setColour(colour.darker(.25));
     g.drawEllipse(getLocalBounds().withSizeKeepingCentre(getWidth() - 2, getHeight() - 2).toFloat(), 2.f);
     g.setColour(Colours::white);
-    g.drawText(String(index + 1), getLocalBounds(), Justification::centred, 1);
+    g.drawText(String(index + 1), getLocalBounds(), Justification::centred);
 }
 
 void XYController::Node::mouseDown(const MouseEvent &event) {

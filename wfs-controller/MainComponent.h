@@ -40,7 +40,7 @@ private:
     //==============================================================================
     static constexpr uint NUM_MODULES{8};
 
-    void addSource();
+    void addSource(uint sourceIndex);
 
     void removeSource(uint sourceIndex);
 

@@ -10,7 +10,7 @@ MainComponent::MainComponent(ValueTree &tree) :
         valueTree.setProperty("/source/" + String{nodeIndex} + "/x", position.x, nullptr);
         valueTree.setProperty("/source/" + String{nodeIndex} + "/y", position.y, nullptr);
     };
-    xyController.onAddNode = [this] { addSource(); };
+    xyController.onAddNode = [this](uint nodeIndex) { addSource(nodeIndex); };
     xyController.onRemoveNode = [this](uint nodeIndex) { removeSource(nodeIndex); };
 
     for (uint i = 0; i < NUM_MODULES; ++i) {
@@ -33,6 +33,7 @@ MainComponent::MainComponent(ValueTree &tree) :
 
     setSize(1000, 800);
 
+    setAudioChannels(0, NUM_AUDIO_SOURCES);
     refreshDevicesAndPorts();
 }
 
@@ -157,17 +158,19 @@ void MainComponent::getNextAudioBlock(const AudioSourceChannelInfo &bufferToFill
     multiChannelSource->getNextAudioBlock(bufferToFill);
 }
 
-void MainComponent::addSource() {
+void MainComponent::addSource(uint sourceIndex) {
     fileChooser = std::make_unique<FileChooser>("Select an audio file",
                                                 File("~/Documents"),
                                                 "*.wav;*.aiff;*.flac;*.ogg");
     fileChooser->launchAsync(
             FileBrowserComponent::openMode | FileBrowserComponent::canSelectFiles,
-            [this](const FileChooser &chooser) {
+            [this, sourceIndex](const FileChooser &chooser) {
                 auto file = chooser.getResult();
                 if (file != File{}) {
-                    multiChannelSource->addSource(file);
+                    multiChannelSource->addSource(sourceIndex, file);
                     multiChannelSource->start();
+                } else {
+                    xyController.removeNode(sourceIndex);
                 }
             }
     );
