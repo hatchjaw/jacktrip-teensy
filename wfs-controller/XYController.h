@@ -59,7 +59,7 @@ protected:
 private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (XYController)
 
-//    std::map<int, std::unique_ptr<Node>> nodeMap;
+//    std::map<int, std::unique_ptr<Node>> nodes;
     std::vector<std::unique_ptr<Node>> nodes;
 
     void createNode(Point<float> value);

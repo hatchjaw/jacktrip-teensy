@@ -5,30 +5,6 @@ MainComponent::MainComponent(ValueTree &tree) :
         multiChannelSource(std::make_unique<MultiChannelAudioSource>()),
         valueTree(tree) {
 
-    // TODO: generalise this -- use a compiler flag? Shared with teensies?
-    // TODO: use this in MultiChannelAudioSource?
-    setAudioChannels(0, 2);
-
-    // Use JACK for output
-    // TODO: warn if JACK not found
-    auto setup{deviceManager.getAudioDeviceSetup()};
-    setup.bufferSize = 32;
-    auto &deviceTypes{deviceManager.getAvailableDeviceTypes()};
-    for (auto type: deviceTypes) {
-        auto typeName{type->getTypeName()};
-        if (typeName == "JACK") {
-            deviceManager.setCurrentAudioDeviceType(typeName, true);
-            type->scanForDevices();
-            auto names{type->getDeviceNames()};
-            if (names.contains("system", true)) {
-                setup.outputDeviceName = "system";
-                // Should really check for an error string here.
-                auto result{deviceManager.setAudioDeviceSetup(setup, true)};
-                break;
-            }
-        }
-    }
-
     addAndMakeVisible(xyController);
     xyController.onValueChange = [this](uint nodeIndex, Point<float> position) {
         valueTree.setProperty("/source/" + String{nodeIndex} + "/x", position.x, nullptr);
@@ -42,7 +18,6 @@ MainComponent::MainComponent(ValueTree &tree) :
         addAndMakeVisible(cb);
         cb->onChange = [this, cb, i] {
             auto ip{cb->getText()};
-            DBG("setting property: /module/" + String(i) + ": " + ip);
             valueTree.setProperty("/module/" + String(i), ip, nullptr);
         };
         moduleSelectors.add(cb);
@@ -54,15 +29,46 @@ MainComponent::MainComponent(ValueTree &tree) :
 
     addAndMakeVisible(connectToModulesButton);
     connectToModulesButton.setButtonText("Refresh ports");
-    connectToModulesButton.onClick = [this] { refreshPorts(); };
+    connectToModulesButton.onClick = [this] { refreshDevicesAndPorts(); };
 
-    setSize(800, 800);
+    setSize(1000, 800);
 
-    refreshPorts();
+    refreshDevicesAndPorts();
 }
 
-void MainComponent::refreshPorts() {
+void MainComponent::refreshDevicesAndPorts() {
+    // Use JACK for output
+    if (deviceManager.getCurrentAudioDeviceType() != "JACK") {
+        multiChannelSource->stop();
+
+        auto setup{deviceManager.getAudioDeviceSetup()};
+        setup.bufferSize = 32;
+        setup.useDefaultOutputChannels = false;
+        setup.outputChannels = NUM_AUDIO_SOURCES;
+        auto &deviceTypes{deviceManager.getAvailableDeviceTypes()};
+        // TODO: warn if JACK not found...
+        for (auto type: deviceTypes) {
+            auto typeName{type->getTypeName()};
+            if (typeName == "JACK") {
+                deviceManager.setCurrentAudioDeviceType(typeName, true);
+
+                // Preliminarily connect to the dummy jack client
+                type->scanForDevices();
+                auto names{type->getDeviceNames()};
+                if (names.contains(jack.getClientName(), true)) {
+                    setup.outputDeviceName = jack.getClientName();
+                    // Should really check for an error string here.
+                    auto result{deviceManager.setAudioDeviceSetup(setup, true)};
+                    break;
+                }
+            }
+        }
+
+        multiChannelSource->start();
+    }
+
     jack.connect();
+
     auto clients{jack.getJackTripClients()};
     // Update the module selector lists.
     for (auto *selector: moduleSelectors) {
@@ -140,31 +146,14 @@ MainComponent::~MainComponent() {
 }
 
 void MainComponent::prepareToPlay(int samplesPerBlockExpected, double sampleRateReported) {
-//    blockSize = samplesPerBlockExpected;
-//    sampleRate = sampleRateReported;
-//
-//    mixer->prepareToPlay(samplesPerBlockExpected, sampleRateReported);
     multiChannelSource->prepareToPlay(samplesPerBlockExpected, sampleRateReported);
 }
 
 void MainComponent::releaseResources() {
-//    for (auto &source: transportSources) {
-//        source->releaseResources();
-//    }
-//    mixer->releaseResources();
     multiChannelSource->releaseResources();
 }
 
 void MainComponent::getNextAudioBlock(const AudioSourceChannelInfo &bufferToFill) {
-    // TODO: each source occupies a channel; fix the panning accordingly.
-//    for (auto &source: transportSources) {
-//        if (source->isPlaying()) {
-//            source->getNextAudioBlock(bufferToFill);
-//        }
-//    }
-//    const ScopedLock sl{lock};
-//    mixer->getNextAudioBlock(bufferToFill);
-
     multiChannelSource->getNextAudioBlock(bufferToFill);
 }
 
@@ -185,13 +174,5 @@ void MainComponent::addSource() {
 }
 
 void MainComponent::removeSource(uint sourceIndex) {
-//    auto &source{transportSources.back()};
-//    source->stop();
-//    source->releaseResources();
-//    transportSources.erase(transportSources.end());
-
-//    auto source{transportSources[sourceIndex].get()};//.end()};
-//    mixer->removeInputSource(source);
-//    transportSources.erase(sourceIndex);
     multiChannelSource->removeSource(sourceIndex);
 }

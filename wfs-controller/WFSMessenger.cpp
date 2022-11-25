@@ -29,12 +29,14 @@ void WFSMessenger::connect() {
     send(bundle);
 }
 
-void WFSMessenger::valueTreePropertyChanged(ValueTree &treeWhosePropertyHasChanged, const Identifier &property) {
+void WFSMessenger::valueTreePropertyChanged(ValueTree &, const Identifier &property) {
     OSCBundle bundle;
 
     if (property.toString().contains("module")) {
+//        DBG("Sending OSC: " << property.toString() << " " << valueTree.getProperty(property).toString());
         bundle.addElement(OSCMessage{property.toString(), valueTree.getProperty(property).toString()});
     } else {
+//        DBG("Sending OSC: " << property.toString() << " " << static_cast<float>(valueTree.getProperty(property)));
         bundle.addElement(OSCMessage{property.toString(), static_cast<float>(valueTree.getProperty(property))});
     }
 

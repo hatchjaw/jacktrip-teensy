@@ -113,4 +113,5 @@ target_link_libraries(WfsController
 target_compile_definitions(WfsController
         PUBLIC
         JUCE_JACK=1
-        JUCE_JACK_CLIENT_NAME="${PROJECT_NAME}")
+        JUCE_JACK_CLIENT_NAME="${PROJECT_NAME}"
+        NUM_AUDIO_SOURCES=3)

@@ -22,11 +22,11 @@ void MultiChannelAudioSource::prepareToPlay(int samplesPerBlockExpected, double 
 void MultiChannelAudioSource::releaseResources() {
     const ScopedLock sl{lock};
 
-    for (auto *reader: readers) {
+    for (auto *reader: sources) {
         reader->releaseResources();
     }
 
-    readers.clear(true);
+    sources.clear(true);
 
     tempBuffer.setSize(2, 0);
 
@@ -36,20 +36,17 @@ void MultiChannelAudioSource::releaseResources() {
 void MultiChannelAudioSource::getNextAudioBlock(const AudioSourceChannelInfo &bufferToFill) {
     const ScopedLock sl{lock};
 
-//    jassert(readers.size() >= bufferToFill.buffer->getNumChannels());
-
-    if (!stopped) {
-        for (int i = 0; i < readers.size(); ++i) {
+    if (!sources.isEmpty() && !stopped) {
+        for (int i = 0; i < sources.size(); ++i) {
             auto writePointer = bufferToFill.buffer->getWritePointer(i);
             // Set up a single-channel temp buffer
-            tempBuffer.setDataToReferTo(&writePointer,
-                                        1,
-                                        bufferToFill.buffer->getNumSamples());
+            tempBuffer.setDataToReferTo(&writePointer, 1, bufferToFill.buffer->getNumSamples());
             AudioSourceChannelInfo channelInfo(&tempBuffer, bufferToFill.startSample, bufferToFill.numSamples);
-            readers.getUnchecked(i)->getNextAudioBlock(channelInfo);
+            sources.getUnchecked(i)->getNextAudioBlock(channelInfo);
         }
 
         if (!playing) {
+            DBG("MultiChannelAudioSource: Just stopped playing...");
             // just stopped playing, so fade out the last block...
             for (int i = bufferToFill.buffer->getNumChannels(); --i >= 0;)
                 bufferToFill.buffer->applyGainRamp(i, bufferToFill.startSample, jmin(256, bufferToFill.numSamples),
@@ -59,8 +56,9 @@ void MultiChannelAudioSource::getNextAudioBlock(const AudioSourceChannelInfo &bu
                 bufferToFill.buffer->clear(bufferToFill.startSample + 256, bufferToFill.numSamples - 256);
         }
 
-        if (readers.getUnchecked(0)->getNextReadPosition() > readers.getUnchecked(0)->getTotalLength() + 1
-            && !readers.getUnchecked(0)->isLooping()) {
+        if (!sources.isEmpty()
+            && sources.getUnchecked(0)->getNextReadPosition() > sources.getUnchecked(0)->getTotalLength() + 1
+            && !sources.getUnchecked(0)->isLooping()) {
             playing = false;
             sendChangeMessage();
         }
@@ -79,28 +77,28 @@ void MultiChannelAudioSource::getNextAudioBlock(const AudioSourceChannelInfo &bu
 }
 
 void MultiChannelAudioSource::setNextReadPosition(int64 newPosition) {
-    for (auto *reader: readers) {
+    for (auto *reader: sources) {
         reader->setNextReadPosition(newPosition);
     }
 }
 
 int64 MultiChannelAudioSource::getNextReadPosition() const {
-    if (readers.isEmpty()) {
+    if (sources.isEmpty()) {
         return 0;
     }
 
-    return readers.getUnchecked(0)->getNextReadPosition();
+    return sources.getUnchecked(0)->getNextReadPosition();
 }
 
 int64 MultiChannelAudioSource::getTotalLength() const {
     const ScopedLock sl{lock};
 
-    if (readers.isEmpty()) {
+    if (sources.isEmpty()) {
         return 0;
     }
 
     int64 length{0};
-    for (auto *reader: readers) {
+    for (auto *reader: sources) {
         if (reader->getTotalLength() > length) {
             length = reader->getTotalLength();
         }
@@ -111,51 +109,37 @@ int64 MultiChannelAudioSource::getTotalLength() const {
 bool MultiChannelAudioSource::isLooping() const {
     const ScopedLock sl{lock};
 
-    return !readers.isEmpty() && readers.getUnchecked(0)->isLooping();
+    return !sources.isEmpty() && sources.getUnchecked(0)->isLooping();
 }
 
 void MultiChannelAudioSource::addSource(File &file) {
-    if (auto *reader = formatManager.createReaderFor(file)) {
-        readers.add(new juce::AudioFormatReaderSource(reader, true));
+    if (auto *source = formatManager.createReaderFor(file)) {
+        DBG("MultiChannelAudioSource: Adding source " << sources.size());
+        auto *reader = new juce::AudioFormatReaderSource(source, true);
+        reader->setLooping(true);
+        sources.add(reader);
     } else {
         jassertfalse;
     }
-
-//    if (reader != nullptr) {
-//        readerSource = std::make_unique<juce::AudioFormatReaderSource>(reader, true);
-//        readerSource->setLooping(true);
-//
-////                        transport->setSource(newSource.get(), 0, nullptr, reader->sampleRate);
-////                        transport->setGain(.5f);
-////                        transport->setLooping(true);
-////                        transport->prepareToPlay(blockSize, sampleRate);
-////                        transport->start();
-////                        mixer->addInputSource(transport.get(), false);
-//
-//        transportSources.push_back(std::make_unique<AudioTransportSource>());
-//        auto *transport{transportSources.back().get()};
-//        transport->setSource(readerSource.get(), 0, nullptr, reader->sampleRate);
-//        transport->setGain(.5f);
-//        transport->prepareToPlay(blockSize, sampleRate);
-//        transport->start();
-//        mixer->addInputSource(transport, false);
-
-//                        transportSources.back()->setSource(newSource.get(), 0, nullptr, reader->sampleRate);
-//                        transportSources.back()->prepareToPlay(blockSize, sampleRate);
-//                        transportSources.back()->setGain(.5f);
-//                        transportSources.back()->setLooping(true);
-//                        transportSources.back()->start();
-//                        mixer->addInputSource(transportSources.back().get(), false);
-//                        readerSource = std::move(newSource);
-
 }
 
 void MultiChannelAudioSource::removeSource(uint index) {
-    readers.remove(static_cast<int>(index), true);
+    const ScopedLock sl{lock};
+
+    DBG("MultiChannelAudioSource: Removing source " << String(index));
+
+    auto idx = static_cast<int>(index);
+    // Come on, mate; release resources *then* remove.
+    sources.getUnchecked(idx)->releaseResources();
+    sources.remove(idx, true);
+
+    if (sources.isEmpty()) {
+        stop();
+    }
 }
 
 void MultiChannelAudioSource::start() {
-    if (!playing) {
+    if (!sources.isEmpty() && !playing) {
         {
             const ScopedLock sl{lock};
             playing = true;

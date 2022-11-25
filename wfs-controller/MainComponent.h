@@ -9,6 +9,10 @@
 #include "JackConnector.h"
 #include "MultiChannelAudioSource.h"
 
+#ifndef NUM_AUDIO_SOURCES
+#define NUM_AUDIO_SOURCES 2
+#endif
+
 //==============================================================================
 /*
     This component lives inside our window, and this is where you should put all
@@ -35,22 +39,12 @@ public:
 private:
     //==============================================================================
     static constexpr uint NUM_MODULES{8};
-    const StringArray TEENSY_IPS{
-            "192.168.10.182", // 1
-            "192.168.10.28",  // 2
-            "192.168.10.30",  // 3
-            "192.168.10.149", // 4
-            "192.168.10.31",  // 5
-            "192.168.10.196", // 6
-            "192.168.10.126", // 7
-            "192.168.10.156", // 8
-    };
 
     void addSource();
 
     void removeSource(uint sourceIndex);
 
-    void refreshPorts();
+    void refreshDevicesAndPorts();
 
     void showSettings();
 
@@ -58,11 +52,6 @@ private:
     SafePointer <DialogWindow> settingsWindow;
 
     juce::TextButton connectToModulesButton;
-
-//    juce::AudioFormatManager formatManager;
-//    std::unique_ptr<juce::AudioFormatReaderSource> readerSource;
-//    std::vector<std::unique_ptr<juce::AudioTransportSource>> transportSources;
-//    std::unique_ptr<juce::MixerAudioSource> mixer;
 
     std::unique_ptr<MultiChannelAudioSource> multiChannelSource;
 
@@ -74,9 +63,6 @@ private:
     JackConnector jack;
 
     ValueTree &valueTree;
-
-
-//    CriticalSection lock;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };

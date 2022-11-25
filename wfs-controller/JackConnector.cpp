@@ -5,12 +5,22 @@
 #include "JackConnector.h"
 
 JackConnector::JackConnector() {
+    openClient();
+}
+
+void JackConnector::openClient() {
     jack_status_t status;
-    client = jack_client_open(CLIENT_NAME, JackNoStartServer, &status);
+    client = jack_client_open(CONNECTOR_CLIENT_NAME, JackNoStartServer, &status);
     if (client == nullptr) {
         fprintf(stderr, "jack_client_open() failed, "
                         "status = 0x%2.0x\n", status);
     }
+    for (int i = 1; i <= NUM_AUDIO_SOURCES; ++i) {
+        char portName[5];
+        sprintf(portName, "in_%d", i);
+        jack_port_register(client, portName, JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
+    }
+    jack_activate(client);
 }
 
 JackConnector::~JackConnector() {
@@ -18,9 +28,15 @@ JackConnector::~JackConnector() {
 }
 
 void JackConnector::connect() {
-    // Disconnect from (automatically connected) system output.
-    jack_disconnect(client, JUCE_JACK_CLIENT_NAME ":out_1", "system:playback_1");
-    jack_disconnect(client, JUCE_JACK_CLIENT_NAME ":out_2", "system:playback_2");
+    if (client == nullptr) {
+        openClient();
+    }
+
+    // Disconnect automatically connected connections.
+    std::string connectorPort{std::string{CONNECTOR_CLIENT_NAME} + ":in_1" };
+    jack_disconnect(client, JUCE_JACK_CLIENT_NAME ":out_1", connectorPort.c_str());
+    connectorPort = std::string{CONNECTOR_CLIENT_NAME} + ":in_2";
+    jack_disconnect(client, JUCE_JACK_CLIENT_NAME ":out_2", connectorPort.c_str());
 
     const char **inPorts, **outPorts;
 
@@ -47,17 +63,29 @@ void JackConnector::connect() {
         jack_free(inPorts);
         ++i;
     } while (outPorts != nullptr);
+
+    jack_deactivate(client);
 }
 
 StringArray JackConnector::getJackTripClients() {
     StringArray clients{};
     for (int i = 0; outputDevices && outputDevices[i] != nullptr; ++i) {
         // Quick/dirty extraction of an IP from jack port name of the form:
-        // __ffff_<IP>:<send|receive>_n
+        // __ffff_<IP>:<send|receive>_<n>
         auto device = String{outputDevices[i]}
                 .upToFirstOccurrenceOf(":", false, true)
                 .fromLastOccurrenceOf("_", false, true);
         clients.add(device);
     }
+    std::sort(clients.begin(), clients.end(),
+              [](const String &a, const String &b) {
+                  auto A{std::stoi(a.fromLastOccurrenceOf(".", false, true).toStdString())},
+                          B{std::stoi(b.fromLastOccurrenceOf(".", false, true).toStdString())};
+                  return B > A;
+              });
     return clients;
+}
+
+String JackConnector::getClientName() {
+    return String{CONNECTOR_CLIENT_NAME};
 }

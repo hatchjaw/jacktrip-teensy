@@ -35,7 +35,8 @@ public:
 
 private:
     AudioFormatManager formatManager;
-    OwnedArray<AudioFormatReaderSource> readers;
+    OwnedArray<AudioFormatReaderSource, CriticalSection> sources;
+//    std::unordered_map<uint, std::unique_ptr<AudioFormatReaderSource>> sources;
     AudioBuffer<float> tempBuffer;
 
     CriticalSection lock;
