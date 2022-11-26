@@ -9,7 +9,7 @@
 
 class XYController : public Component {
 public:
-    explicit XYController();
+    explicit XYController(uint maxNumNodes = 0);
 
     void paint(Graphics &g) override;
 
@@ -68,7 +68,6 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (XYController)
 
     std::unordered_map<uint, std::unique_ptr<Node>> nodes;
-//    std::vector<std::unique_ptr<Node>> nodes;
 
     void createNode(Point<float> value);
 
@@ -82,6 +81,10 @@ private:
 
     std::unordered_map<uint, std::unique_ptr<XYController::Node>>::iterator
     removeNodeByIterator(std::unordered_map<uint, std::unique_ptr<XYController::Node>>::iterator it);
+
+    uint maxNodes;
+
+    bool canAddNode();
 };
 
 

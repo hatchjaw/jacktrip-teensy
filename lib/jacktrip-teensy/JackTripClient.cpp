@@ -34,6 +34,8 @@ uint8_t JackTripClient::begin(uint16_t port) {
     }
 
     if (UDP_PACKET_SIZE > FNET_SOCKET_DEFAULT_SIZE) {
+        Serial.printf("JackTripClient: UDP packet size (%d) is greater than the default socket size (%d). "
+                      "Increasing to match.\n", UDP_PACKET_SIZE, FNET_SOCKET_DEFAULT_SIZE);
         EthernetClass::setSocketSize(UDP_PACKET_SIZE);
     }
 

@@ -6,10 +6,11 @@
 #define JACKTRIP_TEENSY_MULTICHANNELAUDIOSOURCE_H
 
 #include <JuceHeader.h>
+#include "Utils.h"
 
 class MultiChannelAudioSource : public PositionableAudioSource, public ChangeBroadcaster {
 public:
-    MultiChannelAudioSource();
+    explicit MultiChannelAudioSource(uint maxNumSources = 0);
 
     void prepareToPlay(int samplesPerBlockExpected, double sampleRateToUse) override;
 
@@ -35,7 +36,6 @@ public:
 
 private:
     AudioFormatManager formatManager;
-//    OwnedArray<AudioFormatReaderSource, CriticalSection> sources;
     std::unordered_map<uint, std::unique_ptr<AudioFormatReaderSource>> sources;
     AudioBuffer<float> tempBuffer;
 
@@ -46,8 +46,11 @@ private:
     float gain{1.0f}, lastGain{1.0f};
     std::atomic<bool> playing { false }, stopped { true };
     bool isPrepared = false;
+    uint maxSources;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MultiChannelAudioSource)
+
+    bool canAddSource();
 };
 
 

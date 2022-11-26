@@ -1,23 +1,7 @@
 declare name "Distributed WFS";
 declare description "Basic WFS for a distributed setup consisting of modules that each handle two output channels.";
 import("stdfaust.lib");
-
-// Speed of sound (c)
-CELERITY = 343;
-// max Y distance, in meters, that a source can be from the speaker array
-MAX_Y_DIST = 10;
-// Number of samples it takes sound to travel one meter.
-SAMPLES_PER_METRE = ma.SR/CELERITY;
-// Number of samples it takes sound to traverse the speaker array
-MAX_DELAY = (N_SPEAKERS-1)*SPEAKER_DIST*SAMPLES_PER_METRE;
-// Number of speakers in the speaker array.
-N_SPEAKERS = 16;
-// Each module (Teensy) controls two speakers.
-SPEAKERS_PER_MODULE = 2;
-// distance (m) between individual speakers: TODO: MEASURE AND ADJUST.
-SPEAKER_DIST = 0.23;
-// Number of sound sources (i.e. mono channels)
-N_SOURCES = 3;
+import("WFS_Params.lib");
 
 // Set which speakers to control.
 moduleID = hslider("moduleID", 0, 0, (N_SPEAKERS / SPEAKERS_PER_MODULE) - 1, 1);

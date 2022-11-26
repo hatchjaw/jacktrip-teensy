@@ -2,7 +2,9 @@
 
 //==============================================================================
 MainComponent::MainComponent(ValueTree &tree) :
-        multiChannelSource(std::make_unique<MultiChannelAudioSource>()),
+        multiChannelSource(std::make_unique<MultiChannelAudioSource>(NUM_AUDIO_SOURCES)),
+        xyController(NUM_AUDIO_SOURCES),
+        jack(NUM_JACKTRIP_CHANNELS),
         valueTree(tree) {
 
     addAndMakeVisible(xyController);
@@ -43,7 +45,7 @@ void MainComponent::refreshDevicesAndPorts() {
         multiChannelSource->stop();
 
         auto setup{deviceManager.getAudioDeviceSetup()};
-        setup.bufferSize = 32;
+        setup.bufferSize = AUDIO_BLOCK_SAMPLES;
         setup.useDefaultOutputChannels = false;
         setup.outputChannels = NUM_AUDIO_SOURCES;
         auto &deviceTypes{deviceManager.getAvailableDeviceTypes()};

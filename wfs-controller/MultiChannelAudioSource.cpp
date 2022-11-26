@@ -4,7 +4,7 @@
 
 #include "MultiChannelAudioSource.h"
 
-MultiChannelAudioSource::MultiChannelAudioSource() {
+MultiChannelAudioSource::MultiChannelAudioSource(uint maxNumSources) : maxSources(maxNumSources) {
     formatManager.registerBasicFormats();
 }
 
@@ -37,13 +37,18 @@ void MultiChannelAudioSource::getNextAudioBlock(const AudioSourceChannelInfo &bu
     const ScopedLock sl{lock};
 
     if (!sources.empty() && !stopped) {
-        for (auto it = sources.begin(); it != sources.end(); ++it) {
-//        for (auto &source: sources) {
-            auto writePointer = bufferToFill.buffer->getWritePointer(static_cast<int>(it->first));
-            // Set up a single-channel temp buffer
-            tempBuffer.setDataToReferTo(&writePointer, 1, bufferToFill.buffer->getNumSamples());
-            AudioSourceChannelInfo channelInfo(&tempBuffer, bufferToFill.startSample, bufferToFill.numSamples);
-            it->second->getNextAudioBlock(channelInfo);
+        auto numChannels{static_cast<uint>(bufferToFill.buffer->getNumChannels())};
+        for (auto &source: sources) {
+            // Prevent doomed attempts to write to channels that don't exist.
+            if (source.first < numChannels) {
+                auto writePointer = bufferToFill.buffer->getWritePointer(static_cast<int>(source.first));
+                // Set up a single-channel temp buffer.
+                tempBuffer.setDataToReferTo(&writePointer, 1, bufferToFill.buffer->getNumSamples());
+                // Combine it with the incoming channel info
+                AudioSourceChannelInfo channelInfo(&tempBuffer, bufferToFill.startSample, bufferToFill.numSamples);
+                // Write the next block of the audio file.
+                source.second->getNextAudioBlock(channelInfo);
+            }
         }
 
         if (!playing) {
@@ -114,6 +119,10 @@ bool MultiChannelAudioSource::isLooping() const {
 }
 
 void MultiChannelAudioSource::addSource(uint index, File &file) {
+    if (!canAddSource()) {
+        DBG("MultiChannelAudioSource: already full of sources.");
+        return;
+    }
     if (auto *reader = formatManager.createReaderFor(file)) {
         DBG("MultiChannelAudioSource: Adding source with ID " << sources.size());
         auto source = std::make_unique<AudioFormatReaderSource>(reader, true);
@@ -163,4 +172,8 @@ void MultiChannelAudioSource::stop() {
 
         sendChangeMessage();
     }
+}
+
+bool MultiChannelAudioSource::canAddSource() {
+    return maxSources == 0 || sources.size() < maxSources;
 }

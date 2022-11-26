@@ -8,10 +8,8 @@
 #include "XYController.h"
 #include "JackConnector.h"
 #include "MultiChannelAudioSource.h"
+#include "Utils.h"
 
-#ifndef NUM_AUDIO_SOURCES
-#define NUM_AUDIO_SOURCES 2
-#endif
 
 //==============================================================================
 /*
@@ -38,7 +36,7 @@ public:
 
 private:
     //==============================================================================
-    static constexpr uint NUM_MODULES{8};
+    static constexpr uint NUM_MODULES{NUM_SPEAKERS / SPEAKERS_PER_MODULE};
 
     void addSource(uint sourceIndex);
 

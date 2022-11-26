@@ -4,7 +4,7 @@
 
 #include "JackConnector.h"
 
-JackConnector::JackConnector() {
+JackConnector::JackConnector(uint numPortsToRegister) : numPorts(numPortsToRegister) {
     openClient();
 }
 
@@ -15,7 +15,7 @@ void JackConnector::openClient() {
         fprintf(stderr, "jack_client_open() failed, "
                         "status = 0x%2.0x\n", status);
     }
-    for (int i = 1; i <= NUM_AUDIO_SOURCES; ++i) {
+    for (uint i = 1; i <= numPorts; ++i) {
         char portName[5];
         sprintf(portName, "in_%d", i);
         jack_port_register(client, portName, JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
@@ -31,12 +31,6 @@ void JackConnector::connect() {
     if (client == nullptr) {
         openClient();
     }
-
-    // Disconnect automatically connected connections.
-    std::string connectorPort{std::string{CONNECTOR_CLIENT_NAME} + ":in_1" };
-    jack_disconnect(client, JUCE_JACK_CLIENT_NAME ":out_1", connectorPort.c_str());
-    connectorPort = std::string{CONNECTOR_CLIENT_NAME} + ":in_2";
-    jack_disconnect(client, JUCE_JACK_CLIENT_NAME ":out_2", connectorPort.c_str());
 
     const char **inPorts, **outPorts;
 

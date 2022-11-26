@@ -5,7 +5,7 @@
 #include "XYController.h"
 
 
-XYController::XYController() = default;
+XYController::XYController(uint maxNumNodes) : maxNodes(maxNumNodes) {}
 
 void XYController::paint(Graphics &g) {
     Component::paint(g);
@@ -28,10 +28,8 @@ void XYController::mouseDown(const MouseEvent &event) {
         // Maybe add a node
         PopupMenu m;
         if (event.originalComponent == this) {
-            m.addItem(1, "Create node");
-            if (!nodes.empty()) {
-                m.addItem(2, "Remove all nodes");
-            }
+            if (canAddNode()) { m.addItem(1, "Create node"); }
+            if (!nodes.empty()) { m.addItem(2, "Remove all nodes"); }
             m.showMenuAsync(PopupMenu::Options(), [this, event](int result) {
                 if (result == 1) {
                     // Find position centered on the location of the click.
@@ -128,15 +126,21 @@ void XYController::removeNode(uint index) {
     nodes.erase(index);
 }
 
+bool XYController::canAddNode() {
+    return maxNodes == 0 || nodes.size() < maxNodes;
+}
+
 XYController::Node::Node(Value val, uint idx) : index(idx), value(val) {}
 
 void XYController::Node::paint(Graphics &g) {
-    auto colour{juce::Colours::steelblue.withRotatedHue(static_cast<float>(index) * 1/juce::MathConstants<float>::twoPi)};
+    auto colour{
+            juce::Colours::steelblue.withRotatedHue(static_cast<float>(index) * 1 / juce::MathConstants<float>::twoPi)};
     g.setColour(colour);
     g.fillEllipse(getLocalBounds().toFloat());
     g.setColour(colour.darker(.25));
     g.drawEllipse(getLocalBounds().withSizeKeepingCentre(getWidth() - 2, getHeight() - 2).toFloat(), 2.f);
     g.setColour(Colours::white);
+    g.setFont(20);
     g.drawText(String(index + 1), getLocalBounds(), Justification::centred);
 }
 

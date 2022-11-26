@@ -132,7 +132,6 @@ void parsePosition(OSCMessage &msg, int addrOffset) {
     // Rough-and-ready check to prevent attempting to set an invalid source
     // position.
     auto sourceIdx{atoi(path)};
-//    Serial.println(sourceIdx);
     if (sourceIdx >= JackTripClient::getNumChannels()){
         Serial.printf("Invalid source index: %d\n", sourceIdx);
         return;
