@@ -137,7 +137,7 @@ private:
      * private variable.
      * The size must match the number passed to the AudioStream constructor."
      */
-    audio_block_t *inputQueueArray[2]{};
+    audio_block_t *inputQueueArray[NUM_JACKTRIP_CHANNELS]{};
     /**
      * The header to send with every outgoing JackTrip packet.
      * TimeStamp and SeqNumber should be incremented accordingly.

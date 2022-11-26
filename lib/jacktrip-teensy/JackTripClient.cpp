@@ -5,7 +5,7 @@
 #include "JackTripClient.h"
 
 JackTripClient::JackTripClient(IPAddress &serverIpAddress, uint16_t serverTcpPort) :
-        AudioStream(2, inputQueueArray),
+        AudioStream(NUM_JACKTRIP_CHANNELS, inputQueueArray),
         clientIP(serverIpAddress),
         serverIP(serverIpAddress), // Assume client and server on same subnet
         serverTcpPort(serverTcpPort),

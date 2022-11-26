@@ -2,10 +2,12 @@
 #include <Audio.h>
 #include <OSCBundle.h>
 #include <JackTripClient.h>
+#include <vector>
+#include <memory>
 #include "WFS/WFS.h"
 
 // Define this to wait for a serial connection before proceeding with execution
-//#define WAIT_FOR_SERIAL
+#define WAIT_FOR_SERIAL
 
 // Define this to print packet stats.
 #define SHOW_STATS
@@ -35,12 +37,12 @@ AudioMixer4 mixerL;
 AudioMixer4 mixerR;
 
 // Audio system connections
-AudioConnection patchCord00(jtc, 0, wfs, 0);
+//AudioConnection patchCord00(jtc, 0, wfs, 0);
 //AudioConnection patchCord10(jtc, 0, pt, 0);
 //AudioConnection patchCord20(jtc, 0, out, 0);
 AudioConnection patchCord30(jtc, 0, mixerL, 0);
 
-AudioConnection patchCord35(jtc, 1, wfs, 1);
+//AudioConnection patchCord35(jtc, 1, wfs, 1);
 //AudioConnection patchCord40(jtc, 1, pt, 1);
 //AudioConnection patchCord50(jtc, 1, out, 1);
 AudioConnection patchCord60(jtc, 1, mixerR, 0);
@@ -56,6 +58,8 @@ AudioConnection patchCord86(wfs, 1, out, 1);
 // server over UDP.
 AudioConnection patchCord90(mixerL, 0, jtc, 0);
 AudioConnection patchCord91(mixerR, 0, jtc, 1);
+
+std::vector<std::unique_ptr<AudioConnection>> jtcWfsCords;
 //endregion
 
 //region Warning params
@@ -81,6 +85,12 @@ void setup() {
     if (CrashReport) {  // Print any crash report
         Serial.println(CrashReport);
         CrashReport.clear();
+    }
+
+    // Autopatch jtc to wfs, and to itself for sending back to the server.
+    for (int i = 0; i < NUM_JACKTRIP_CHANNELS; ++i) {
+        jtcWfsCords.push_back(std::make_unique<AudioConnection>(jtc, i, wfs, i));
+        jtcWfsCords.push_back(std::make_unique<AudioConnection>(jtc, i, jtc, i));
     }
 
     Serial.printf("Sampling rate: %f\n", AUDIO_SAMPLE_RATE_EXACT);
