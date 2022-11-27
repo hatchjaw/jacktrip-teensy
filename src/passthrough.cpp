@@ -3,6 +3,7 @@
 //
 #include <Audio.h>
 #include <JackTripClient.h>
+#include "Gain/Gain.h"
 
 // Define this to wait for a serial connection before proceeding with execution
 #define WAIT_FOR_SERIAL
@@ -32,12 +33,16 @@ AudioOutputI2S out;
 audio_block_t *inputQueue[NUM_JACKTRIP_CHANNELS];
 JackTripClient jtc{NUM_JACKTRIP_CHANNELS, inputQueue, jackTripServerIP};
 
+Gain g;
+
 // Server -> UDP (1 channel) -> JTC
-// JTC out 0 -> audio -> I2S in 0
-// JTC out 0 -> audio -> JTC in 0
+// JTC out 0 -> audio -> Gain in 0
+// Gain out 0 -> audio -> I2S in 0
+// Gain out 0 -> audio -> JTC in 0
 // JTC -> UDP (1 channel) -> Server
-AudioConnection patchCord10(jtc, 0, out, 0);
-AudioConnection patchCord20(jtc, 0, jtc, 0);
+AudioConnection patchCord10(jtc, 0, g, 0);
+AudioConnection patchCord20(g, 0, out, 0);
+AudioConnection patchCord30(g, 0, jtc, 0);
 
 //region Forward declarations
 void startAudio();
@@ -65,6 +70,8 @@ void setup() {
     AudioMemory(32);
 
     startAudio();
+
+    g.setParamValue("gain", .9);
 }
 
 void loop() {
