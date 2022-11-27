@@ -9,6 +9,10 @@
 // Define this to wait for a serial connection before proceeding with execution
 #define WAIT_FOR_SERIAL
 
+#ifndef NUM_JACKTRIP_CHANNELS
+#define NUM_JACKTRIP_CHANNELS 2
+#endif
+
 // Define this to print packet stats.
 #define SHOW_STATS
 
@@ -16,53 +20,34 @@
 #define WAIT_INFINITE() while (true) yield();
 
 // Local udp port on which to receive packets.
-const uint16_t LOCAL_UDP_PORT = 8888;
+const uint16_t kLocalUdpPort = 8888;
 // Remote server IP address -- should match address in IPv4 settings.
 IPAddress jackTripServerIP{192, 168, 10, 10};
 // Parameters for OSC over UDP multicast.
 IPAddress oscMulticastIP{230, 0, 0, 20};
-const uint16_t OSC_MULTICAST_PORT{41814};
+const uint16_t kOscMulticastPort{41814};
 
 //region Audio system objects
 // Audio shield driver
 AudioControlSGTL5000 audioShield;
 AudioOutputI2S out;
 
-JackTripClient jtc{jackTripServerIP};
+audio_block_t *inputQueue[NUM_JACKTRIP_CHANNELS];
+JackTripClient jtc{NUM_JACKTRIP_CHANNELS, inputQueue, jackTripServerIP};
 
 EthernetUDP udp;
 
 WFS wfs;
-AudioMixer4 mixerL;
-AudioMixer4 mixerR;
 
 // Audio system connections
-//AudioConnection patchCord00(jtc, 0, wfs, 0);
-//AudioConnection patchCord10(jtc, 0, pt, 0);
-//AudioConnection patchCord20(jtc, 0, out, 0);
-AudioConnection patchCord30(jtc, 0, mixerL, 0);
-
-//AudioConnection patchCord35(jtc, 1, wfs, 1);
-//AudioConnection patchCord40(jtc, 1, pt, 1);
-//AudioConnection patchCord50(jtc, 1, out, 1);
-AudioConnection patchCord60(jtc, 1, mixerR, 0);
-
-//AudioConnection patchCord70(pt, 0, mixerL, 1);
-//AudioConnection patchCord80(pt, 1, mixerR, 1);
-
 // WFS outputs routed to Teensy outputs
-AudioConnection patchCord85(wfs, 0, out, 0);
-AudioConnection patchCord86(wfs, 1, out, 1);
+AudioConnection patchCord00(wfs, 0, out, 0);
+AudioConnection patchCord10(wfs, 1, out, 1);
 
-// Mixer outputs routed to JackTripClient inputs -- to be sent to the JackTrip
-// server over UDP.
-AudioConnection patchCord90(mixerL, 0, jtc, 0);
-AudioConnection patchCord91(mixerR, 0, jtc, 1);
-
-std::vector<std::unique_ptr<AudioConnection>> jtcWfsCords;
+std::vector<std::unique_ptr<AudioConnection>> patchCords;
 //endregion
 
-//region Warning params
+//region Performance report params
 elapsedMillis performanceReport;
 const uint32_t PERF_REPORT_INTERVAL = 5000;
 //endregion
@@ -89,8 +74,8 @@ void setup() {
 
     // Autopatch jtc to wfs, and to itself for sending back to the server.
     for (int i = 0; i < NUM_JACKTRIP_CHANNELS; ++i) {
-        jtcWfsCords.push_back(std::make_unique<AudioConnection>(jtc, i, wfs, i));
-        jtcWfsCords.push_back(std::make_unique<AudioConnection>(jtc, i, jtc, i));
+        patchCords.push_back(std::make_unique<AudioConnection>(jtc, i, wfs, i));
+        patchCords.push_back(std::make_unique<AudioConnection>(jtc, i, jtc, i));
     }
 
     Serial.printf("Sampling rate: %f\n", AUDIO_SAMPLE_RATE_EXACT);
@@ -99,12 +84,12 @@ void setup() {
     jtc.setShowStats(true, 5'000);
 #endif
 
-    if (!jtc.begin(LOCAL_UDP_PORT)) {
+    if (!jtc.begin(kLocalUdpPort)) {
         Serial.println("Failed to initialise jacktrip client.");
         WAIT_INFINITE()
     }
 
-    if (1 != udp.beginMulticast(oscMulticastIP, OSC_MULTICAST_PORT)) {
+    if (1 != udp.beginMulticast(oscMulticastIP, kOscMulticastPort)) {
         Serial.println("Failed to start listening for OSC messages.");
         WAIT_INFINITE()
     }
@@ -142,7 +127,7 @@ void parsePosition(OSCMessage &msg, int addrOffset) {
     // Rough-and-ready check to prevent attempting to set an invalid source
     // position.
     auto sourceIdx{atoi(path)};
-    if (sourceIdx >= JackTripClient::getNumChannels()){
+    if (sourceIdx >= jtc.getNumChannels()) {
         Serial.printf("Invalid source index: %d\n", sourceIdx);
         return;
     }
@@ -153,12 +138,12 @@ void parsePosition(OSCMessage &msg, int addrOffset) {
     wfs.setParamValue(path, pos);
 }
 
-void parseModule(OSCMessage &msg, int addrOffset){
+void parseModule(OSCMessage &msg, int addrOffset) {
     char ipString[15];
     IPAddress ip;
     msg.getString(0, ipString, 15);
     ip.fromString(ipString);
-    if (ip == EthernetClass::localIP()){
+    if (ip == EthernetClass::localIP()) {
         char id[2];
         msg.getAddress(id, addrOffset + 1);
         auto numericID = strtof(id, nullptr);

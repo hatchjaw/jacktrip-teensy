@@ -6,14 +6,22 @@ if ! command -v tycmd &>/dev/null; then
   exit 1
 fi
 
+environment=$1
+if [ -z "$environment" ]; then
+  echo "Expected to receive a platformIO environment. Defaulting to 'wfs'."
+  environment="wfs"
+fi
+
 # Build
 cd "$(dirname "$(realpath "$0")")"/.. || exit 1
-pio run
+# Run
+pio run -e "$environment"
+# GTFO if pio's exited unhappily
 if [ $? -eq 1 ]; then
     exit 1
 fi
 
-cd .pio/build/teensy41 || exit 1
+cd .pio/build/$environment || exit 1
 
 echo -e "\nLooking for Teensies to upload to."
 

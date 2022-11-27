@@ -29,7 +29,9 @@ void WFSMessenger::connect() {
 //    send(bundle);
 }
 
-void WFSMessenger::valueTreePropertyChanged(ValueTree &, const Identifier &property) {
+void WFSMessenger::valueTreePropertyChanged(ValueTree &treeWhosePropertyHasChanged, const Identifier &property) {
+    ignoreUnused(treeWhosePropertyHasChanged);
+
     OSCBundle bundle;
 
     if (property.toString().contains("module")) {

@@ -32,7 +32,7 @@ private:
         READ,
         WRITE
     };
-    const uint32_t STAT_INTERVAL{2500};
+    const uint32_t kStatInterval{2500};
     uint16_t length;
     T *buffer;
     uint16_t writeIndex{0}, readIndex{0};

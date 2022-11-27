@@ -21,10 +21,6 @@
 
 #define RECEIVE_CONDITION while
 
-#ifndef NUM_JACKTRIP_CHANNELS
-#define NUM_JACKTRIP_CHANNELS 2
-#endif
-
 #define JACKTRIP_EXIT_PACKET_SIZE 63
 
 /**
@@ -34,7 +30,10 @@
  */
 class JackTripClient : public AudioStream, EthernetUDP {
 public:
-    explicit JackTripClient(IPAddress &serverIpAddress, uint16_t serverTcpPort = 4464);
+    JackTripClient(uint8_t numChannels,
+                   audio_block_t **inputQueue,
+                   IPAddress &serverIpAddress,
+                   uint16_t serverTcpPort = 4464);
 
     virtual ~JackTripClient();
 
@@ -58,14 +57,10 @@ public:
 
     void setShowStats(bool show, uint16_t intervalMS = 1'000);
 
-    static uint16_t getNumChannels() { return NUM_CHANNELS; };
+    uint16_t getNumChannels() const { return kNumChannels; };
 
 private:
-    static constexpr uint8_t NUM_CHANNELS{NUM_JACKTRIP_CHANNELS};
-    static constexpr uint16_t UDP_PACKET_SIZE{
-            PACKET_HEADER_SIZE + NUM_CHANNELS * AUDIO_BLOCK_SAMPLES * sizeof(uint16_t)};
     static constexpr uint32_t RECEIVE_TIMEOUT_MS{10'000};
-    static constexpr uint16_t AUDIO_BUFFER_SIZE{AUDIO_BLOCK_SAMPLES * NUM_CHANNELS * 2};
     /**
      * Size in bytes of one channel's worth of samples.
      */
@@ -75,12 +70,18 @@ private:
      */
     static constexpr uint8_t EXIT_PACKET_SIZE{JACKTRIP_EXIT_PACKET_SIZE};
 
+    const uint8_t kNumChannels;
+    const uint32_t kUdpPacketSize;
+    const uint32_t kAudioPacketSize;
+
     /**
      * "The heart of your object is it's update() function.
      * The library will call your update function every 128 samples,
      * or approximately every 2.9 milliseconds."
      */
     void update(void) override;
+
+    void updateImpl();
 
     /**
      * Receive a JackTrip packet containing audio to route to this object's
@@ -136,8 +137,12 @@ private:
      * "The final required component is inputQueueArray[], which should be a
      * private variable.
      * The size must match the number passed to the AudioStream constructor."
+     *
+     * ...Except, in order to permit specifying the number of channels, the
+     * input queue is passed in as a parameter.
      */
-    audio_block_t *inputQueueArray[NUM_JACKTRIP_CHANNELS]{};
+//    audio_block_t *inputQueueArray[NUM_JACKTRIP_CHANNELS]{};
+
     /**
      * The header to send with every outgoing JackTrip packet.
      * TimeStamp and SeqNumber should be incremented accordingly.
@@ -145,13 +150,11 @@ private:
     JackTripPacketHeader packetHeader{
             0,
             0,
-            // Teensy's default block size is 128. Can be overridden with
-            // compiler flag -DAUDIO_BLOCK_SAMPLES (see platformio.ini).
             AUDIO_BLOCK_SAMPLES,
             samplingRateT::SR44,
             16,
-            NUM_CHANNELS,
-            NUM_CHANNELS
+            kNumChannels,
+            kNumChannels
     };
 
     elapsedMicros packetInterval{0};
@@ -167,8 +170,6 @@ private:
 
     PacketStats packetStats;
     bool showStats{false};
-
-    void updateImpl();
 };
 
 

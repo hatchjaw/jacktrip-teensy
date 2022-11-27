@@ -6,8 +6,8 @@
 
 template<typename T>
 CircularBuffer<T>::CircularBuffer(uint16_t length) :
-        length(length),
-        buffer(new T[length]) {
+        length{length},
+        buffer{new T[length]} {
     clear();
 }
 
@@ -39,7 +39,7 @@ void CircularBuffer<T>::clear() {
 
 template<typename T>
 void CircularBuffer<T>::printStats() {
-    if (statTimer > STAT_INTERVAL) {
+    if (statTimer > kStatInterval) {
         Serial.printf("CircularBuffer: writes %d %s reads %d, delta %d\n",
                       numWrites,
                       (numWrites > numReads ? ">" : (numWrites < numReads ? "<" : "==")),

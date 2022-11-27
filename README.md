@@ -116,7 +116,7 @@ doing so at the desired sample rate/buffer size.
 After uploading to a Teensy (`pio run`), 
 the program will wait for a serial connection (if the `WAIT_FOR_SERIAL` 
 define is set).
-Start JackTrip on the computer in hub server mode with buffer latency of 2
+Start JackTrip on the computer in hub server mode with queue buffer length of 2
 (rather than the default, 4)
 ```shell
 jacktrip -S -q2
@@ -124,7 +124,11 @@ jacktrip -S -q2
 Specify patching mode (no autopatching) and instruct JackTrip to report
 packet loss, buffer overflow/underruns with
 ```shell
-jacktrip -S -q2 -p5 -I1
+jacktrip -S -q2 -p5 -I5 
+```
+Additionally, set the number of IO channels with, e.g.
+```shell
+jacktrip -S -q2 -p5 -I5 -n8
 ```
 
 Then open a serial connection to Teensy (`pio device monitor`) and the program 
@@ -184,19 +188,7 @@ so it's no good for multicast. Instead, use the app in directory
 - A TCP handshake is used to exchange UDP ports between client and server.
 - Client starts to send UDP packets, the server uses the header to initialize 
   jack parameters.
-- Don't run jacktrip with loopback auto-patching. Just. No. 
-
-### Alsa
-
-If, between sample rate/buffer size/driver changes, audio locks up, to force
-Alsa to restart:
-
-```shell
-name@comp:~$ lsof | grep pcm
-sh 5079 name 70u CHR 116,6 13639 /dev/snd/pcmC0D0p
-
-name@comp:~$ kill -9 5079
-```
+- Don't run jacktrip with loopback auto-patching. Trust me.
 
 ## TODO
 
@@ -226,4 +218,5 @@ name@comp:~$ kill -9 5079
 - Using a dummy driver it's possible to set a very low buffer size, consequently
   `AUDIO_BLOCK_SAMPLES` can be set as low as 8, with (initial) roundtrip latency
   of ~1.5 ms. 4 samples seems to be too small even for a dummy driver. 8 is a 
-  little flakey; 16 can yield round-trip latency of as little as 1.8 ms.
+  little flaky; 16 can yield round-trip latency of as little as 1.8 ms.
+- `FNET_POLL_TIME` in NativeEthernet.h... what's going on there?

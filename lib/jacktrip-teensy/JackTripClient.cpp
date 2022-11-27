@@ -4,15 +4,22 @@
 
 #include "JackTripClient.h"
 
-JackTripClient::JackTripClient(IPAddress &serverIpAddress, uint16_t serverTcpPort) :
-        AudioStream(NUM_JACKTRIP_CHANNELS, inputQueueArray),
-        clientIP(serverIpAddress),
-        serverIP(serverIpAddress), // Assume client and server on same subnet
-        serverTcpPort(serverTcpPort),
+JackTripClient::JackTripClient(uint8_t numChannels,
+                               audio_block_t **inputQueue,
+                               IPAddress &serverIpAddress,
+                               uint16_t serverTcpPort) :
+        AudioStream{numChannels, inputQueue},
+        // Assume client and server on same subnet
+        kNumChannels{numChannels},
+        kUdpPacketSize{PACKET_HEADER_SIZE + kNumChannels * AUDIO_BLOCK_SAMPLES * sizeof(uint16_t)},
+        kAudioPacketSize{AUDIO_BLOCK_SAMPLES * kNumChannels * 2u},
+        clientIP{serverIpAddress},
+        serverIP{serverIpAddress},
+        serverTcpPort{serverTcpPort},
 #ifdef USE_TIMER
         timer(TeensyTimerTool::GPT1),
 #endif
-        udpBuffer(UDP_PACKET_SIZE * 16) {
+        udpBuffer(kUdpPacketSize * 16) {
     // Generate a MAC address (from the program-once area of Teensy's flash
     // memory) to assign to the ethernet shield.
     teensyMAC(clientMAC);
@@ -33,10 +40,10 @@ uint8_t JackTripClient::begin(uint16_t port) {
         return 0;
     }
 
-    if (UDP_PACKET_SIZE > FNET_SOCKET_DEFAULT_SIZE) {
+    if (kUdpPacketSize > FNET_SOCKET_DEFAULT_SIZE) {
         Serial.printf("JackTripClient: UDP packet size (%d) is greater than the default socket size (%d). "
-                      "Increasing to match.\n", UDP_PACKET_SIZE, FNET_SOCKET_DEFAULT_SIZE);
-        EthernetClass::setSocketSize(UDP_PACKET_SIZE);
+                      "Increasing to match.\n", kUdpPacketSize, FNET_SOCKET_DEFAULT_SIZE);
+        EthernetClass::setSocketSize(kUdpPacketSize);
     }
 
     Serial.print("JackTripClient: MAC address is: ");
@@ -57,7 +64,7 @@ uint8_t JackTripClient::begin(uint16_t port) {
     Serial.print("JackTripClient: IP is ");
     Serial.println(EthernetClass::localIP());
 
-    Serial.printf("JackTripClient: Packet size is %d bytes\n", UDP_PACKET_SIZE);
+    Serial.printf("JackTripClient: Packet size is %d bytes\n", kUdpPacketSize);
 
 #ifdef USE_TIMER
     auto timerPeriod = 1'000'000.f * static_cast<float>(AUDIO_BLOCK_SAMPLES) / AUDIO_SAMPLE_RATE_EXACT;
@@ -168,7 +175,7 @@ void JackTripClient::receivePackets() {
 
             stop();
             return;
-        } else if (size != UDP_PACKET_SIZE) {
+        } else if (size != kUdpPacketSize) {
             Serial.println("JackTripClient: Received a malformed packet");
         } else {
             // Read the UDP packet and write it into a circular buffer.
@@ -206,12 +213,12 @@ void JackTripClient::sendPacket() {
 
     // Get the location in the UDP buffer to which audio samples should be
     // written.
-    uint8_t packet[UDP_PACKET_SIZE];
+    uint8_t packet[kUdpPacketSize];
     uint8_t *pos = packet + PACKET_HEADER_SIZE;
 
     // Copy audio to the UDP buffer.
-    audio_block_t *inBlock[NUM_CHANNELS];
-    for (int channel = 0; channel < NUM_CHANNELS; channel++) {
+    audio_block_t *inBlock[num_inputs];
+    for (int channel = 0; channel < num_inputs; channel++) {
         inBlock[channel] = receiveReadOnly(channel);
         // Only proceed if a block was returned, i.e. something is connected
         // to one of this object's input channels.
@@ -231,8 +238,8 @@ void JackTripClient::sendPacket() {
 
     // Send the packet.
     beginPacket(serverIP, serverUdpPort);
-    size_t written = write(packet, UDP_PACKET_SIZE);
-    if (written != UDP_PACKET_SIZE) {
+    size_t written = write(packet, kUdpPacketSize);
+    if (written != kUdpPacketSize) {
         Serial.println("JackTripClient: Net buffer is too small");
     }
     auto result = endPacket();
@@ -248,11 +255,11 @@ void JackTripClient::doAudioOutput() {
 
     // Copy from UDP inBuffer to audio output.
     // Write samples to output.
-    audio_block_t *outBlock[NUM_CHANNELS];
-    uint8_t data[UDP_PACKET_SIZE];
+    audio_block_t *outBlock[kNumChannels];
+    uint8_t data[kUdpPacketSize];
     // Read a packet from the input UDP buffer
-    udpBuffer.read(data, UDP_PACKET_SIZE);
-    for (int channel = 0; channel < NUM_CHANNELS; channel++) {
+    udpBuffer.read(data, kUdpPacketSize);
+    for (int channel = 0; channel < kNumChannels; channel++) {
         outBlock[channel] = allocate();
         // Only proceed if an audio block was allocated, i.e. the
         // current output channel is connected to something.

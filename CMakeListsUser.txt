@@ -6,6 +6,7 @@ set(CMAKE_PROJECT_VERSION 0.0.2)
 # definitions here, to be shared between Teensy/JUCE builds, but no joy.
 set(NUM_CHANNELS 8)
 set(AUDIO_BLOCK_SAMPLES 32)
+
 set(NUM_SPEAKERS 16)
 set(SPEAKERS_PER_MODULE 2)
 
@@ -17,7 +18,7 @@ add_compile_definitions(
         SPEAKERS_PER_MODULE=${SPEAKERS_PER_MODULE}
 )
 
-if (NOT CMAKE_BUILD_TYPE MATCHES "teensy41")
+if (NOT CMAKE_BUILD_TYPE MATCHES "wfs" AND NOT CMAKE_BUILD_TYPE MATCHES "passthrough")
     set(CMAKE_SYSTEM_NAME "Linux")
     unset(CMAKE_C_COMPILER)
     unset(CMAKE_CXX_COMPILER)
