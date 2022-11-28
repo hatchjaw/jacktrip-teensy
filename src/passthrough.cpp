@@ -6,7 +6,7 @@
 #include "Gain/Gain.h"
 
 // Define this to wait for a serial connection before proceeding with execution
-#define WAIT_FOR_SERIAL
+//#define WAIT_FOR_SERIAL
 
 #ifndef NUM_JACKTRIP_CHANNELS
 #define NUM_JACKTRIP_CHANNELS 1

@@ -18,7 +18,7 @@ void setup() {
     g.setParamValue("gain", .5);
     Serial.println("Gain set.");
     g.setParamValue("gain?", .5);
-    Serial.println("Gain set again.");
+    Serial.println("Gain not set.");
 }
 
 void loop() {}

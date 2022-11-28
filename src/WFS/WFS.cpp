@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------
 name: "Distributed WFS"
-Code generated with Faust 2.52.1 (https://faust.grame.fr)
+Code generated with Faust 2.54.3 (https://faust.grame.fr)
 Compilation options: -a /usr/local/share/faust/teensy/teensy.cpp -lang cpp -i -es 1 -mcd 16 -uim -single -ftz 0
 ------------------------------------------------------------ */
 
@@ -133,7 +133,7 @@ Compilation options: -a /usr/local/share/faust/teensy/teensy.cpp -lang cpp -i -e
 #ifndef __export__
 #define __export__
 
-#define FAUSTVERSION "2.52.1"
+#define FAUSTVERSION "2.54.3"
 
 // Use FAUST_API for code that is part of the external API but is also compiled in faust and libfaust
 // Use LIBFAUST_API for code that is compiled in faust and libfaust
@@ -1007,6 +1007,7 @@ class FAUST_API dsp_factory {
         virtual std::string getCompileOptions() = 0;
         virtual std::vector<std::string> getLibraryList() = 0;
         virtual std::vector<std::string> getIncludePathnames() = 0;
+        virtual std::vector<std::string> getWarningMessages() = 0;
     
         virtual dsp* createDSPInstance() = 0;
     
@@ -9722,13 +9723,14 @@ struct dsp_poly_factory : public dsp_factory {
     virtual ~dsp_poly_factory()
     {}
 
-    virtual std::string getName() { return fProcessFactory->getName(); }
-    virtual std::string getSHAKey() { return fProcessFactory->getSHAKey(); }
-    virtual std::string getDSPCode() { return fProcessFactory->getDSPCode(); }
-    virtual std::string getCompileOptions() { return fProcessFactory->getCompileOptions(); }
-    virtual std::vector<std::string> getLibraryList() { return fProcessFactory->getLibraryList(); }
-    virtual std::vector<std::string> getIncludePathnames() { return fProcessFactory->getIncludePathnames(); }
-
+    std::string getName() { return fProcessFactory->getName(); }
+    std::string getSHAKey() { return fProcessFactory->getSHAKey(); }
+    std::string getDSPCode() { return fProcessFactory->getDSPCode(); }
+    std::string getCompileOptions() { return fProcessFactory->getCompileOptions(); }
+    std::vector<std::string> getLibraryList() { return fProcessFactory->getLibraryList(); }
+    std::vector<std::string> getIncludePathnames() { return fProcessFactory->getIncludePathnames(); }
+    std::vector<std::string> getWarningMessages() { return fProcessFactory->getWarningMessages(); }
+   
     std::string getEffectCode(const std::string& dsp_content)
     {
         std::stringstream effect_code;
@@ -9968,7 +9970,7 @@ class mydsp : public dsp {
 		fConst2 = 1.0f - fConst1;
 		fConst3 = 0.002915452f * fConst0;
 		fConst4 = 3.1415927f / fConst0;
-		fConst5 = 0.010058309f * fConst0 + 1.0f;
+		fConst5 = 0.010189504f * fConst0 + 1.0f;
 	}
 	
 	virtual void instanceResetUserInterface() {
@@ -10192,7 +10194,7 @@ class mydsp : public dsp {
 		FAUSTFLOAT* output1 = outputs[1];
 		float fSlow0 = fConst1 * float(fHslider0);
 		float fSlow1 = float(fHslider1);
-		float fSlow2 = 0.46f * fSlow1;
+		float fSlow2 = 0.466f * fSlow1;
 		float fSlow3 = fConst1 * float(fHslider2);
 		float fSlow4 = fConst1 * float(fHslider3);
 		float fSlow5 = fConst1 * float(fHslider4);
@@ -10208,13 +10210,13 @@ class mydsp : public dsp {
 		float fSlow15 = fConst1 * float(fHslider14);
 		float fSlow16 = fConst1 * float(fHslider15);
 		float fSlow17 = fConst1 * float(fHslider16);
-		float fSlow18 = 0.23f * (2.0f * fSlow1 + 1.0f);
+		float fSlow18 = 0.233f * (2.0f * fSlow1 + 1.0f);
 		for (int i0 = 0; i0 < count; i0 = i0 + 1) {
 			fRec0[0] = fSlow0 + fConst2 * fRec0[1];
 			float fTemp0 = 1e+01f * fRec0[0];
 			float fTemp1 = mydsp_faustpower2_f(fTemp0);
 			fRec1[0] = fSlow3 + fConst2 * fRec1[1];
-			float fTemp2 = 3.68f * fRec1[0];
+			float fTemp2 = 3.728f * fRec1[0];
 			float fTemp3 = std::sqrt(mydsp_faustpower2_f(fTemp2 - fSlow2) + fTemp1);
 			float fTemp4 = fConst3 * (fTemp3 - fTemp0);
 			float fTemp5 = std::floor(fTemp4);
@@ -10231,7 +10233,7 @@ class mydsp : public dsp {
 			float fTemp13 = 1e+01f * fRec3[0];
 			float fTemp14 = mydsp_faustpower2_f(fTemp13);
 			fRec4[0] = fSlow5 + fConst2 * fRec4[1];
-			float fTemp15 = 3.68f * fRec4[0];
+			float fTemp15 = 3.728f * fRec4[0];
 			float fTemp16 = std::sqrt(mydsp_faustpower2_f(fTemp15 - fSlow2) + fTemp14);
 			float fTemp17 = fConst3 * (fTemp16 - fTemp13);
 			float fTemp18 = std::floor(fTemp17);
@@ -10248,7 +10250,7 @@ class mydsp : public dsp {
 			float fTemp26 = 1e+01f * fRec6[0];
 			float fTemp27 = mydsp_faustpower2_f(fTemp26);
 			fRec7[0] = fSlow7 + fConst2 * fRec7[1];
-			float fTemp28 = 3.68f * fRec7[0];
+			float fTemp28 = 3.728f * fRec7[0];
 			float fTemp29 = std::sqrt(mydsp_faustpower2_f(fTemp28 - fSlow2) + fTemp27);
 			float fTemp30 = fConst3 * (fTemp29 - fTemp26);
 			float fTemp31 = std::floor(fTemp30);
@@ -10265,7 +10267,7 @@ class mydsp : public dsp {
 			float fTemp39 = 1e+01f * fRec9[0];
 			float fTemp40 = mydsp_faustpower2_f(fTemp39);
 			fRec10[0] = fSlow9 + fConst2 * fRec10[1];
-			float fTemp41 = 3.68f * fRec10[0];
+			float fTemp41 = 3.728f * fRec10[0];
 			float fTemp42 = std::sqrt(mydsp_faustpower2_f(fTemp41 - fSlow2) + fTemp40);
 			float fTemp43 = fConst3 * (fTemp42 - fTemp39);
 			float fTemp44 = std::floor(fTemp43);
@@ -10282,7 +10284,7 @@ class mydsp : public dsp {
 			float fTemp52 = 1e+01f * fRec12[0];
 			float fTemp53 = mydsp_faustpower2_f(fTemp52);
 			fRec13[0] = fSlow11 + fConst2 * fRec13[1];
-			float fTemp54 = 3.68f * fRec13[0];
+			float fTemp54 = 3.728f * fRec13[0];
 			float fTemp55 = std::sqrt(mydsp_faustpower2_f(fTemp54 - fSlow2) + fTemp53);
 			float fTemp56 = fConst3 * (fTemp55 - fTemp52);
 			float fTemp57 = std::floor(fTemp56);
@@ -10299,7 +10301,7 @@ class mydsp : public dsp {
 			float fTemp65 = 1e+01f * fRec15[0];
 			float fTemp66 = mydsp_faustpower2_f(fTemp65);
 			fRec16[0] = fSlow13 + fConst2 * fRec16[1];
-			float fTemp67 = 3.68f * fRec16[0];
+			float fTemp67 = 3.728f * fRec16[0];
 			float fTemp68 = std::sqrt(mydsp_faustpower2_f(fTemp67 - fSlow2) + fTemp66);
 			float fTemp69 = fConst3 * (fTemp68 - fTemp65);
 			float fTemp70 = std::floor(fTemp69);
@@ -10316,7 +10318,7 @@ class mydsp : public dsp {
 			float fTemp78 = 1e+01f * fRec18[0];
 			float fTemp79 = mydsp_faustpower2_f(fTemp78);
 			fRec19[0] = fSlow15 + fConst2 * fRec19[1];
-			float fTemp80 = 3.68f * fRec19[0];
+			float fTemp80 = 3.728f * fRec19[0];
 			float fTemp81 = std::sqrt(mydsp_faustpower2_f(fTemp80 - fSlow2) + fTemp79);
 			float fTemp82 = fConst3 * (fTemp81 - fTemp78);
 			float fTemp83 = std::floor(fTemp82);
@@ -10333,7 +10335,7 @@ class mydsp : public dsp {
 			float fTemp91 = 1e+01f * fRec21[0];
 			float fTemp92 = mydsp_faustpower2_f(fTemp91);
 			fRec22[0] = fSlow17 + fConst2 * fRec22[1];
-			float fTemp93 = 3.68f * fRec22[0];
+			float fTemp93 = 3.728f * fRec22[0];
 			float fTemp94 = std::sqrt(mydsp_faustpower2_f(fTemp93 - fSlow2) + fTemp92);
 			float fTemp95 = mydsp_faustpower2_f(5.0f / (fTemp94 + 5.0f));
 			float fTemp96 = std::tan(fConst4 * (1.5e+04f * fTemp95 + 5e+03f));

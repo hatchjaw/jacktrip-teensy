@@ -17,7 +17,7 @@ N_SPEAKERS = 16;
 SPEAKERS_PER_MODULE = 2;
 
 // distance (m) between individual speakers: TODO: MEASURE AND ADJUST.
-SPEAKER_DIST = 0.23;
+SPEAKER_DIST = 0.233;
 
 // Number of sound sources (i.e. mono channels)
 N_SOURCES = 8;
