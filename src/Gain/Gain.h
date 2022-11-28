@@ -22,14 +22,16 @@
  
  ************************************************************************/
 
-#ifndef faust_PassThrough_h_
-#define faust_PassThrough_h_
+#ifndef faust_Gain_h_
+#define faust_Gain_h_
 
 #include <string>
 
 #include "Arduino.h"
 #include "AudioStream.h"
 #include "Audio.h"
+
+#define fprintf(X, Y, Z) Serial.printf(Y, Z)
 
 class dsp;
 class MapUI;
@@ -39,12 +41,12 @@ class MidiUI;
 class teensy_midi;
 #endif
 
-class PassThrough : public AudioStream
+class Gain : public AudioStream
 {
     public:
     
-        PassThrough();
-        ~PassThrough();
+        Gain();
+        ~Gain();
     
         virtual void update(void);
     

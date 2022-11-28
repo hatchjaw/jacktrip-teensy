@@ -1,4 +1,2 @@
-declare name "PassThrough";
-import("stdfaust.lib");
-
-process = _,_;
+import ("stdfaust.lib");
+process = _;

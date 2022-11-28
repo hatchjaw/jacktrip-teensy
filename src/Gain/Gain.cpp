@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------
-name: "PassThrough"
-Code generated with Faust 2.50.1 (https://faust.grame.fr)
+name: "Gain"
+Code generated with Faust 2.54.3 (https://faust.grame.fr)
 Compilation options: -a /usr/local/share/faust/teensy/teensy.cpp -lang cpp -i -es 1 -mcd 16 -uim -single -ftz 0
 ------------------------------------------------------------ */
 
@@ -44,7 +44,7 @@ Compilation options: -a /usr/local/share/faust/teensy/teensy.cpp -lang cpp -i -e
 
 #include <string.h> // for memset
 
-#include "PassThrough.h"
+#include "Gain.h"
 
 // IMPORTANT: in order for MapUI to work, the teensy linker must be g++
 /************************** BEGIN MapUI.h ******************************
@@ -107,30 +107,33 @@ Compilation options: -a /usr/local/share/faust/teensy/teensy.cpp -lang cpp -i -e
 #define __UI_H__
 
 /************************************************************************
- ************************************************************************
-    FAUST compiler
-    Copyright (C) 2003-2018 GRAME, Centre National de Creation Musicale
-    ---------------------------------------------------------------------
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- ************************************************************************
- ************************************************************************/
+ FAUST Architecture File
+ Copyright (C) 2003-2022 GRAME, Centre National de Creation Musicale
+ ---------------------------------------------------------------------
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU Lesser General Public License as published by
+ the Free Software Foundation; either version 2.1 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ GNU Lesser General Public License for more details.
+ 
+ You should have received a copy of the GNU Lesser General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ 
+ EXCEPTION : As a special exception, you may create a larger work
+ that contains this FAUST architecture section and distribute
+ that work under terms of your choice, so long as this FAUST
+ architecture section is not modified.
+ ***************************************************************************/
 
 #ifndef __export__
 #define __export__
 
-#define FAUSTVERSION "2.50.1"
+#define FAUSTVERSION "2.54.3"
 
 // Use FAUST_API for code that is part of the external API but is also compiled in faust and libfaust
 // Use LIBFAUST_API for code that is compiled in faust and libfaust
@@ -204,8 +207,8 @@ struct FAUST_API UIReal {
     
     // -- metadata declarations
     
-    virtual void declare(REAL* zone, const char* key, const char* val) {}
-    
+    virtual void declare(REAL* /*zone*/, const char* /*key*/, const char* /*val*/) {}
+
     // To be used by LLVM client
     virtual int sizeOfFAUSTFLOAT() { return sizeof(FAUSTFLOAT); }
 };
@@ -828,7 +831,7 @@ struct FAUST_API dsp_memory_manager {
      * Inform the Memory Manager with the number of expected memory zones.
      * @param count - the number of expected memory zones
      */
-    virtual void begin(size_t count) {}
+    virtual void begin(size_t /*count*/) {}
     
     /**
      * Give the Memory Manager information on a given memory zone.
@@ -836,8 +839,8 @@ struct FAUST_API dsp_memory_manager {
      * @param reads - the number of Read access to the zone used to compute one frame
      * @param writes - the number of Write access to the zone used to compute one frame
      */
-    virtual void info(size_t size, size_t reads, size_t writes) {}
-    
+    virtual void info(size_t /*size*/, size_t /*reads*/, size_t /*writes*/) {}
+
     /**
      * Inform the Memory Manager that all memory zones have been described,
      * to possibly start a 'compute the best allocation strategy' step.
@@ -1004,6 +1007,7 @@ class FAUST_API dsp_factory {
         virtual std::string getCompileOptions() = 0;
         virtual std::vector<std::string> getLibraryList() = 0;
         virtual std::vector<std::string> getIncludePathnames() = 0;
+        virtual std::vector<std::string> getWarningMessages() = 0;
     
         virtual dsp* createDSPInstance() = 0;
     
@@ -1022,14 +1026,17 @@ class FAUST_API ScopedNoDenormals {
     
     private:
     
-        intptr_t fpsr;
+        intptr_t fpsr = 0;
         
         void setFpStatusRegister(intptr_t fpsr_aux) noexcept
         {
         #if defined (__arm64__) || defined (__aarch64__)
             asm volatile("msr fpcr, %0" : : "ri" (fpsr_aux));
         #elif defined (__SSE__)
-            _mm_setcsr(static_cast<uint32_t>(fpsr_aux));
+            // The volatile keyword here is needed to workaround a bug in AppleClang 13.0
+            // which aggressively optimises away the variable otherwise
+            volatile uint32_t fpsr_w = static_cast<uint32_t>(fpsr_aux);
+            _mm_setcsr(fpsr_w);
         #endif
         }
         
@@ -1037,7 +1044,7 @@ class FAUST_API ScopedNoDenormals {
         {
         #if defined (__arm64__) || defined (__aarch64__)
             asm volatile("mrs %0, fpcr" : "=r" (fpsr));
-        #elif defined ( __SSE__)
+        #elif defined (__SSE__)
             fpsr = static_cast<intptr_t>(_mm_getcsr());
         #endif
         }
@@ -1048,16 +1055,14 @@ class FAUST_API ScopedNoDenormals {
         {
         #if defined (__arm64__) || defined (__aarch64__)
             intptr_t mask = (1 << 24 /* FZ */);
+        #elif defined (__SSE__)
+        #if defined (__SSE2__)
+            intptr_t mask = 0x8040;
         #else
-            #if defined(__SSE__)
-            #if defined(__SSE2__)
-                intptr_t mask = 0x8040;
-            #else
-                intptr_t mask = 0x8000;
-            #endif
-            #else
-                intptr_t mask = 0x0000;
-            #endif
+            intptr_t mask = 0x8000;
+        #endif
+        #else
+            intptr_t mask = 0x0000;
         #endif
             getFpStatusRegister();
             setFpStatusRegister(fpsr | mask);
@@ -1070,7 +1075,7 @@ class FAUST_API ScopedNoDenormals {
 
 };
 
-#define AVOIDDENORMALS ScopedNoDenormals();
+#define AVOIDDENORMALS ScopedNoDenormals ftz_scope;
 
 #endif
 
@@ -4121,6 +4126,7 @@ architecture section is not modified.
 
 #include <vector>
 #include <string>
+#include <string.h>
 #include <algorithm>
 #include <assert.h>
 
@@ -9717,13 +9723,14 @@ struct dsp_poly_factory : public dsp_factory {
     virtual ~dsp_poly_factory()
     {}
 
-    virtual std::string getName() { return fProcessFactory->getName(); }
-    virtual std::string getSHAKey() { return fProcessFactory->getSHAKey(); }
-    virtual std::string getDSPCode() { return fProcessFactory->getDSPCode(); }
-    virtual std::string getCompileOptions() { return fProcessFactory->getCompileOptions(); }
-    virtual std::vector<std::string> getLibraryList() { return fProcessFactory->getLibraryList(); }
-    virtual std::vector<std::string> getIncludePathnames() { return fProcessFactory->getIncludePathnames(); }
-
+    std::string getName() { return fProcessFactory->getName(); }
+    std::string getSHAKey() { return fProcessFactory->getSHAKey(); }
+    std::string getDSPCode() { return fProcessFactory->getDSPCode(); }
+    std::string getCompileOptions() { return fProcessFactory->getCompileOptions(); }
+    std::vector<std::string> getLibraryList() { return fProcessFactory->getLibraryList(); }
+    std::vector<std::string> getIncludePathnames() { return fProcessFactory->getIncludePathnames(); }
+    std::vector<std::string> getWarningMessages() { return fProcessFactory->getWarningMessages(); }
+   
     std::string getEffectCode(const std::string& dsp_content)
     {
         std::stringstream effect_code;
@@ -9828,21 +9835,22 @@ class mydsp : public dsp {
 	
  public:
 	
+	FAUSTFLOAT fHslider0;
 	int fSampleRate;
 	
  public:
 	
 	void metadata(Meta* m) { 
 		m->declare("compile_options", "-a /usr/local/share/faust/teensy/teensy.cpp -lang cpp -i -es 1 -mcd 16 -uim -single -ftz 0");
-		m->declare("filename", "PassThrough.dsp");
-		m->declare("name", "PassThrough");
+		m->declare("filename", "Gain.dsp");
+		m->declare("name", "Gain");
 	}
 
 	virtual int getNumInputs() {
-		return 2;
+		return 1;
 	}
 	virtual int getNumOutputs() {
-		return 2;
+		return 1;
 	}
 	
 	static void classInit(int sample_rate) {
@@ -9853,6 +9861,7 @@ class mydsp : public dsp {
 	}
 	
 	virtual void instanceResetUserInterface() {
+		fHslider0 = FAUSTFLOAT(1.0f);
 	}
 	
 	virtual void instanceClear() {
@@ -9877,18 +9886,17 @@ class mydsp : public dsp {
 	}
 	
 	virtual void buildUserInterface(UI* ui_interface) {
-		ui_interface->openVerticalBox("PassThrough");
+		ui_interface->openVerticalBox("Gain");
+		ui_interface->addHorizontalSlider("gain", &fHslider0, FAUSTFLOAT(1.0f), FAUSTFLOAT(0.0f), FAUSTFLOAT(1.0f), FAUSTFLOAT(0.01f));
 		ui_interface->closeBox();
 	}
 	
 	virtual void compute(int count, FAUSTFLOAT** RESTRICT inputs, FAUSTFLOAT** RESTRICT outputs) {
 		FAUSTFLOAT* input0 = inputs[0];
-		FAUSTFLOAT* input1 = inputs[1];
 		FAUSTFLOAT* output0 = outputs[0];
-		FAUSTFLOAT* output1 = outputs[1];
+		float fSlow0 = float(fHslider0);
 		for (int i0 = 0; i0 < count; i0 = i0 + 1) {
-			output0[i0] = FAUSTFLOAT(float(input0[i0]));
-			output1[i0] = FAUSTFLOAT(float(input1[i0]));
+			output0[i0] = FAUSTFLOAT(fSlow0 * float(input0[i0]));
 		}
 	}
 
@@ -9896,16 +9904,18 @@ class mydsp : public dsp {
 
 #ifdef FAUST_UIMACROS
 	
-	#define FAUST_FILE_NAME "PassThrough.dsp"
+	#define FAUST_FILE_NAME "Gain.dsp"
 	#define FAUST_CLASS_NAME "mydsp"
 	#define FAUST_COMPILATION_OPIONS "-a /usr/local/share/faust/teensy/teensy.cpp -lang cpp -i -es 1 -mcd 16 -uim -single -ftz 0"
-	#define FAUST_INPUTS 2
-	#define FAUST_OUTPUTS 2
-	#define FAUST_ACTIVES 0
+	#define FAUST_INPUTS 1
+	#define FAUST_OUTPUTS 1
+	#define FAUST_ACTIVES 1
 	#define FAUST_PASSIVES 0
 
+	FAUST_ADDHORIZONTALSLIDER("gain", fHslider0, 1.0f, 0.0f, 1.0f, 0.01f);
 
 	#define FAUST_LIST_ACTIVES(p) \
+		p(HORIZONTALSLIDER, gain, "gain", fHslider0, 1.0f, 0.0f, 1.0f, 0.01f) \
 
 	#define FAUST_LIST_PASSIVES(p) \
 
@@ -9915,8 +9925,8 @@ class mydsp : public dsp {
 
 /*******************BEGIN ARCHITECTURE SECTION (part 2/2)***************/
 
-#define MULT_16 2147483647
-#define DIV_16 4.6566129e-10
+#define MULT_16 32767
+#define DIV_16 0.0000305185
 
 unsigned __exidx_start;
 unsigned __exidx_end;
@@ -9926,7 +9936,7 @@ std::list<GUI*> GUI::fGuiList;
 ztimedmap GUI::gTimedZoneMap;
 #endif
 
-PassThrough::PassThrough() : AudioStream(FAUST_INPUTS, new audio_block_t*[FAUST_INPUTS])
+Gain::Gain() : AudioStream(FAUST_INPUTS, new audio_block_t*[FAUST_INPUTS])
 {
 #ifdef NVOICES
     int nvoices = NVOICES;
@@ -9968,7 +9978,7 @@ PassThrough::PassThrough() : AudioStream(FAUST_INPUTS, new audio_block_t*[FAUST_
 #endif
 }
 
-PassThrough::~PassThrough()
+Gain::~Gain()
 {
     delete fDSP;
     delete fUI;
@@ -9987,7 +9997,7 @@ PassThrough::~PassThrough()
 }
 
 template <int INPUTS, int OUTPUTS>
-void PassThrough::updateImp(void)
+void Gain::updateImp(void)
 {
 #if MIDICTRL
     // Process the MIDI messages received by the Teensy
@@ -10002,7 +10012,7 @@ void PassThrough::updateImp(void)
             inBlock[channel] = receiveReadOnly(channel);
             if (inBlock[channel]) {
                 for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
-                    int32_t val = inBlock[channel]->data[i] << 16;
+                    int16_t val = inBlock[channel]->data[i];
                     fInChannel[channel][i] = val*DIV_16;
                 }
                 release(inBlock[channel]);
@@ -10014,13 +10024,13 @@ void PassThrough::updateImp(void)
     
     fDSP->compute(AUDIO_BLOCK_SAMPLES, fInChannel, fOutChannel);
     
+    audio_block_t* outBlock[OUTPUTS];
     for (int channel = 0; channel < OUTPUTS; channel++) {
-        audio_block_t* outBlock[OUTPUTS];
         outBlock[channel] = allocate();
         if (outBlock[channel]) {
             for (int i = 0; i < AUDIO_BLOCK_SAMPLES; i++) {
-                int32_t val = fOutChannel[channel][i]*MULT_16;
-                outBlock[channel]->data[i] = val >> 16;
+                int16_t val = fOutChannel[channel][i]*MULT_16;
+                outBlock[channel]->data[i] = val;
             }
             transmit(outBlock[channel], channel);
             release(outBlock[channel]);
@@ -10028,14 +10038,14 @@ void PassThrough::updateImp(void)
     }
 }
 
-void PassThrough::update(void) { updateImp<FAUST_INPUTS, FAUST_OUTPUTS>(); }
+void Gain::update(void) { updateImp<FAUST_INPUTS, FAUST_OUTPUTS>(); }
 
-void PassThrough::setParamValue(const std::string& path, float value)
+void Gain::setParamValue(const std::string& path, float value)
 {
     fUI->setParamValue(path, value);
 }
 
-float PassThrough::getParamValue(const std::string& path)
+float Gain::getParamValue(const std::string& path)
 {
     return fUI->getParamValue(path);
 }

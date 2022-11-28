@@ -1,17 +1,27 @@
 //
-// Created by Tommy Rushton on 16/09/22.
+// Created by tar on 16/09/22.
 //
 
 #ifndef JACKTRIP_TEENSY_JACKTRIPCLIENT_H
 #define JACKTRIP_TEENSY_JACKTRIPCLIENT_H
 
-#undef CONF_DHCP
+#undef USE_TIMER
 
 #include <Audio.h>
 #include <NativeEthernet.h>
 #include <TeensyID.h>
+
+#ifdef USE_TIMER
+#include <TeensyTimerTool.h>
+#endif
+
 #include "PacketHeader.h"
-//#include <PacketHeader.h> // Might be nice to include this from jacktrip
+#include "CircularBuffer.h"
+#include "PacketStats.h"
+
+#define RECEIVE_CONDITION while
+
+#define JACKTRIP_EXIT_PACKET_SIZE 63
 
 /**
  * Inputs: signals produced by other audio components, to be sent to peers over
@@ -20,7 +30,12 @@
  */
 class JackTripClient : public AudioStream, EthernetUDP {
 public:
-    JackTripClient(IPAddress &clientIpAddress, IPAddress &serverIpAddress);
+    JackTripClient(uint8_t numChannels,
+                   audio_block_t **inputQueue,
+                   IPAddress &serverIpAddress,
+                   uint16_t serverTcpPort = 4464);
+
+    virtual ~JackTripClient();
 
     /**
      * Set up the client.
@@ -40,24 +55,24 @@ public:
 
     void stop() override;
 
-private:
-    static constexpr uint8_t NUM_CHANNELS{2};
-    static const uint32_t UDP_BUFFER_SIZE{PACKET_HEADER_SIZE + NUM_CHANNELS * AUDIO_BLOCK_SAMPLES * 2};
-    static const uint32_t RECEIVE_TIMEOUT_MS{10000};
+    void setShowStats(bool show, uint16_t intervalMS = 1'000);
 
+    uint16_t getNumChannels() const { return kNumChannels; };
+
+private:
+    static constexpr uint32_t RECEIVE_TIMEOUT_MS{10'000};
     /**
-     * Remote server tcp port for initial handshake.
+     * Size in bytes of one channel's worth of samples.
      */
-    const uint16_t REMOTE_TCP_PORT{4464};
+    static constexpr uint16_t CHANNEL_FRAME_SIZE{AUDIO_BLOCK_SAMPLES * sizeof(uint16_t)};
     /**
      * Size, in bytes, of JackTrip's exit packet
      */
-    const uint8_t EXIT_PACKET_SIZE{63};
-    /**
-     * Attempt to establish an ethernet connection.
-     * @return Connection status
-     */
-    EthernetLinkStatus startEthernet();
+    static constexpr uint8_t EXIT_PACKET_SIZE{JACKTRIP_EXIT_PACKET_SIZE};
+
+    const uint8_t kNumChannels;
+    const uint32_t kUdpPacketSize;
+    const uint32_t kAudioPacketSize;
 
     /**
      * "The heart of your object is it's update() function.
@@ -66,13 +81,15 @@ private:
      */
     void update(void) override;
 
+    void updateImpl();
+
     /**
      * Receive a JackTrip packet containing audio to route to this object's
      * outputs.
      * NB assumes that a new packet is ready each time it is called. This may
      * well be a dangerous assumption.
      */
-    void receivePacket();
+    void receivePackets();
 
     /**
      * Check whether a packet received from the JackTrip server is an exit
@@ -87,6 +104,11 @@ private:
     void sendPacket();
 
     /**
+     * Copy audio samples from incoming UDP data to Teensy audio output.
+     */
+    void doAudioOutput();
+
+    /**
      * MAC address to assign to Teensy's ethernet shield.
      */
     byte clientMAC[6]{};
@@ -98,28 +120,29 @@ private:
      * IP of the jacktrip server.
      */
     IPAddress serverIP;
-
     /**
-     * UDP port of the jacktrip server.
+     * JackTrip server TCP port for initial handshake.
+     */
+    uint16_t serverTcpPort;
+    /**
+     * JackTrip server UDP port.
      */
     uint32_t serverUdpPort{0};
 
-    bool connected{false};
+    /*volatile*/ bool connected{false};
 
     elapsedMillis lastReceive{0};
-
-    /**
-     * UDP packet buffer (in/out)
-     */
-    uint8_t buffer[UDP_BUFFER_SIZE]{};
 
     /**
      * "The final required component is inputQueueArray[], which should be a
      * private variable.
      * The size must match the number passed to the AudioStream constructor."
-     * TODO: maybe don't need this?
+     *
+     * ...Except, in order to permit specifying the number of channels, the
+     * input queue is passed in as a parameter.
      */
-    audio_block_t *inputQueueArray[2]{};
+//    audio_block_t *inputQueueArray[NUM_JACKTRIP_CHANNELS]{};
+
     /**
      * The header to send with every outgoing JackTrip packet.
      * TimeStamp and SeqNumber should be incremented accordingly.
@@ -127,20 +150,26 @@ private:
     JackTripPacketHeader packetHeader{
             0,
             0,
-            // Teensy's default block size is 128. May be overwritten by
-            // compiler flag -DAUDIO_BLOCK_SAMPLES (see platformio.ini).
             AUDIO_BLOCK_SAMPLES,
             samplingRateT::SR44,
             16,
-            NUM_CHANNELS,
-            NUM_CHANNELS
+            kNumChannels,
+            kNumChannels
     };
 
     elapsedMicros packetInterval{0};
-    JackTripPacketHeader prevHeader;
-    bool awaitingFirstPacket{true};
-    int printCount{0};
-    const int PRINT_LIMIT{1000000};
+    JackTripPacketHeader prevServerHeader{};
+    JackTripPacketHeader *serverHeader;
+
+#ifdef USE_TIMER
+    TeensyTimerTool::PeriodicTimer timer;
+#endif
+
+    CircularBuffer<uint8_t> udpBuffer;
+//    CircularBuffer<int16_t> audioBuffer;
+
+    PacketStats packetStats;
+    bool showStats{false};
 };
 
 
