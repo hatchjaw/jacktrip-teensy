@@ -1,4 +1,4 @@
-set(CMAKE_PROJECT_VERSION 0.0.2)
+set(CMAKE_PROJECT_VERSION 0.0.3)
 
 # Specify the number of jacktrip audio channels
 # For WFS this is also the number of distinct sources.
