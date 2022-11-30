@@ -55,13 +55,17 @@ void PacketStats::setPrintInterval(uint32_t intervalMS) {
 void PacketStats::registerReceive(JackTripPacketHeader &header) {
     ++totalReceived;
 
+//    if (totalReceived < 1000) {
+//        Serial.printf("Seq: %" PRId32 "; Timestamp: %" PRIu64 "\n", header.SeqNumber, header.TimeStamp);
+//    }
+
     if (totalReceived > IGNORE_JUNK) {
         auto seqNumDelta = static_cast<int>(header.SeqNumber) - static_cast<int>(lastReceived.SeqNumber);
         if (header.SeqNumber == 0 && seqNumDelta == -UINT16_MAX) {
             seqNumDelta = 1;
         }
         if (seqNumDelta != 1) {
-            Serial.printf("PACKET DROPPED: prev %d current %d dropped %d\n\n", lastReceived.SeqNumber,
+            Serial.printf("PACKET DROPPED (RECEIVE): prev %d current %d dropped %d\n\n", lastReceived.SeqNumber,
                           header.SeqNumber, header.SeqNumber - lastReceived.SeqNumber - 1);
         }
 
@@ -99,7 +103,7 @@ void PacketStats::registerSend(JackTripPacketHeader &header) {
             seqNumDelta = 1;
         }
         if (seqNumDelta != 1) {
-            Serial.printf("PACKET DROPPED: prev %d current %d dropped %d\n\n", lastSent.SeqNumber,
+            Serial.printf("PACKET DROPPED (SEND): prev %d current %d dropped %d\n\n", lastSent.SeqNumber,
                           header.SeqNumber, header.SeqNumber - lastSent.SeqNumber);
         }
 

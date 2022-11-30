@@ -17,11 +17,16 @@
 
 #include "PacketHeader.h"
 #include "CircularBuffer.h"
+#include "CircularBufferMulti.h"
 #include "PacketStats.h"
+#include "NtpReceiver.h"
 
 #define RECEIVE_CONDITION while
 
 #define JACKTRIP_EXIT_PACKET_SIZE 63
+
+#define JACKTRIPCLIENT_DEBUG
+#undef JACKTRIPCLIENT_DEBUG
 
 /**
  * Inputs: signals produced by other audio components, to be sent to peers over
@@ -60,6 +65,10 @@ public:
     uint16_t getNumChannels() const { return kNumChannels; };
 
 private:
+    struct TimeStampStruct {
+        char* IP;
+        int64_t TimeStamp;
+    };
     static constexpr uint32_t RECEIVE_TIMEOUT_MS{10'000};
     /**
      * Size in bytes of one channel's worth of samples.
@@ -73,6 +82,7 @@ private:
     const uint8_t kNumChannels;
     const uint32_t kUdpPacketSize;
     const uint32_t kAudioPacketSize;
+    const uint32_t kNtpUdpPort{8889};
 
     /**
      * "The heart of your object is it's update() function.
@@ -106,7 +116,8 @@ private:
     /**
      * Copy audio samples from incoming UDP data to Teensy audio output.
      */
-    void doAudioOutput();
+    void doAudioOutputFromUDP();
+    void doAudioOutputFromAudio();
 
     /**
      * MAC address to assign to Teensy's ethernet shield.
@@ -166,10 +177,17 @@ private:
 #endif
 
     CircularBuffer<uint8_t> udpBuffer;
-//    CircularBuffer<int16_t> audioBuffer;
+    CircularBufferMulti<int16_t> audioBuffer;
+    int16_t **audioBlock;
 
     PacketStats packetStats;
     bool showStats{false};
+
+    IPAddress multicastIP{230, 0, 0, 20};
+    uint16_t multicastPort{41815};
+    EthernetUDP timestampMulticaster;
+
+    elapsedMillis timestampInterval{0};
 };
 
 

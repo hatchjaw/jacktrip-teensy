@@ -33,7 +33,7 @@ MainComponent::MainComponent(ValueTree &tree) :
     connectToModulesButton.setButtonText("Refresh ports");
     connectToModulesButton.onClick = [this] { refreshDevicesAndPorts(); };
 
-    setSize(1000, 800);
+    setSize(1080, 800);
 
     setAudioChannels(0, NUM_AUDIO_SOURCES);
     refreshDevicesAndPorts();

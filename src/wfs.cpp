@@ -6,8 +6,9 @@
 #include <memory>
 #include "WFS/WFS.h"
 
-// Define this to wait for a serial connection before proceeding with execution
-//#define WAIT_FOR_SERIAL
+// Wait for a serial connection before proceeding with execution
+#define WAIT_FOR_SERIAL
+#undef WAIT_FOR_SERIAL
 
 #ifndef NUM_JACKTRIP_CHANNELS
 #define NUM_JACKTRIP_CHANNELS 2
@@ -15,6 +16,7 @@
 
 // Define this to print packet stats.
 #define SHOW_STATS
+//#undef SHOW_STATS
 
 // Shorthand to block and do nothing
 #define WAIT_INFINITE() while (true) yield();
@@ -79,6 +81,7 @@ void setup() {
     }
 
     Serial.printf("Sampling rate: %f\n", AUDIO_SAMPLE_RATE_EXACT);
+    Serial.printf("Audio block samples: %d\n", AUDIO_BLOCK_SAMPLES);
 
 #ifdef SHOW_STATS
     jtc.setShowStats(true, 5'000);
