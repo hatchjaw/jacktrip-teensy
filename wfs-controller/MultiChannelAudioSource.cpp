@@ -177,3 +177,8 @@ void MultiChannelAudioSource::stop() {
 bool MultiChannelAudioSource::canAddSource() {
     return maxSources == 0 || sources.size() < maxSources;
 }
+
+void MultiChannelAudioSource::setGain(float newGain) {
+    lastGain = gain;
+    gain = newGain;
+}

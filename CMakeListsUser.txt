@@ -1,10 +1,10 @@
-set(CMAKE_PROJECT_VERSION 0.0.3)
+set(CMAKE_PROJECT_VERSION 0.0.4)
 
 # Specify the number of jacktrip audio channels
-# For WFS this is also the number of distinct sources.
+# For WFS this is also the (maximum) number of distinct sources.
 # Duplicated, annoyingly, from platformio.ini. Tried to specify the compile
 # definitions here, to be shared between Teensy/JUCE builds, but no joy.
-set(NUM_CHANNELS 8)
+set(NUM_CHANNELS 10)
 set(AUDIO_BLOCK_SAMPLES 32)
 
 set(NUM_SPEAKERS 16)

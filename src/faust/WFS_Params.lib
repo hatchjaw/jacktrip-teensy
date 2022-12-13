@@ -16,8 +16,8 @@ N_SPEAKERS = 16;
 // Each module (Teensy) controls two speakers.
 SPEAKERS_PER_MODULE = 2;
 
-// distance (m) between individual speakers: TODO: MEASURE AND ADJUST.
-SPEAKER_DIST = 0.233;
+// distance (m) between individual speakers:
+SPEAKER_DIST = 0.23;
 
 // Number of sound sources (i.e. mono channels)
-N_SOURCES = 8;
+N_SOURCES = 10;

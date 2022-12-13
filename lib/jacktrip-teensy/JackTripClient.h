@@ -5,8 +5,10 @@
 #ifndef JACKTRIP_TEENSY_JACKTRIPCLIENT_H
 #define JACKTRIP_TEENSY_JACKTRIPCLIENT_H
 
+#define USE_TIMER
 #undef USE_TIMER
 
+#include <functional>
 #include <Audio.h>
 #include <NativeEthernet.h>
 #include <TeensyID.h>
@@ -17,11 +19,16 @@
 
 #include "PacketHeader.h"
 #include "CircularBuffer.h"
+#include "CircularBufferMulti.h"
 #include "PacketStats.h"
+#include "NtpReceiver.h"
 
 #define RECEIVE_CONDITION while
 
 #define JACKTRIP_EXIT_PACKET_SIZE 63
+
+#define JACKTRIPCLIENT_DEBUG
+#undef JACKTRIPCLIENT_DEBUG
 
 /**
  * Inputs: signals produced by other audio components, to be sent to peers over
@@ -59,7 +66,13 @@ public:
 
     uint16_t getNumChannels() const { return kNumChannels; };
 
+    void setOnConnected(std::function<void(void)>);
+
 private:
+    struct TimeStampStruct {
+        char* IP;
+        int64_t TimeStamp;
+    };
     static constexpr uint32_t RECEIVE_TIMEOUT_MS{10'000};
     /**
      * Size in bytes of one channel's worth of samples.
@@ -89,7 +102,7 @@ private:
      * NB assumes that a new packet is ready each time it is called. This may
      * well be a dangerous assumption.
      */
-    void receivePackets();
+    int receivePackets();
 
     /**
      * Check whether a packet received from the JackTrip server is an exit
@@ -106,7 +119,8 @@ private:
     /**
      * Copy audio samples from incoming UDP data to Teensy audio output.
      */
-    void doAudioOutput();
+    void doAudioOutputFromUDP();
+    void doAudioOutputFromAudio();
 
     /**
      * MAC address to assign to Teensy's ethernet shield.
@@ -166,10 +180,13 @@ private:
 #endif
 
     CircularBuffer<uint8_t> udpBuffer;
-//    CircularBuffer<int16_t> audioBuffer;
+    CircularBufferMulti<int16_t> audioBuffer;
+    int16_t **audioBlock;
 
     PacketStats packetStats;
     bool showStats{false};
+
+    std::function<void(void)> *onConnected{nullptr};
 };
 
 
