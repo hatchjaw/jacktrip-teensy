@@ -16,7 +16,7 @@ void JackConnector::openClient() {
                         "status = 0x%2.0x\n", status);
     }
     for (uint i = 1; i <= numPorts; ++i) {
-        char portName[5];
+        char portName[6];
         sprintf(portName, "in_%d", i);
         jack_port_register(client, portName, JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0);
     }

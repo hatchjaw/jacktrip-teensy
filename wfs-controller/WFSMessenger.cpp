@@ -22,11 +22,6 @@ void WFSMessenger::connect() {
     socket->bindToPort(8888, "192.168.10.10");
     // TODO: also make multicast IP and port specifiable via the UI.
     connectToSocket(*socket, "230.0.0.20", 41814);
-
-    // Send module ID
-//    OSCBundle bundle;
-//    bundle.addElement(OSCMessage{"/module/0", juce::String{"192.168.10.182"}});
-//    send(bundle);
 }
 
 void WFSMessenger::valueTreePropertyChanged(ValueTree &treeWhosePropertyHasChanged, const Identifier &property) {

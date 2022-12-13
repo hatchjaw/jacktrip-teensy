@@ -6,6 +6,7 @@ MainComponent::MainComponent(ValueTree &tree) :
         xyController(NUM_AUDIO_SOURCES),
         jack(NUM_JACKTRIP_CHANNELS),
         valueTree(tree) {
+    auto fg = getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId);
 
     addAndMakeVisible(xyController);
     xyController.onValueChange = [this](uint nodeIndex, Point<float> position) {
@@ -22,16 +23,42 @@ MainComponent::MainComponent(ValueTree &tree) :
             auto ip{cb->getText()};
             valueTree.setProperty("/module/" + String(i), ip, nullptr);
         };
+        cb->setColour(ComboBox::textColourId, fg);
+        cb->setColour(ComboBox::arrowColourId, fg);
+        cb->setColour(ComboBox::backgroundColourId, Colours::whitesmoke);
         moduleSelectors.add(cb);
     }
 
     addAndMakeVisible(settingsButton);
     settingsButton.setButtonText("Settings");
     settingsButton.onClick = [this] { showSettings(); };
+    settingsButton.setColour(TextButton::textColourOnId, fg);
+    settingsButton.setColour(TextButton::textColourOffId, fg);
+    settingsButton.setColour(TextButton::buttonColourId, Colours::white);
+    settingsButton.setColour(TextButton::buttonOnColourId, Colours::ghostwhite);
 
     addAndMakeVisible(connectToModulesButton);
     connectToModulesButton.setButtonText("Refresh ports");
     connectToModulesButton.onClick = [this] { refreshDevicesAndPorts(); };
+    connectToModulesButton.setColour(TextButton::textColourOffId, fg);
+    connectToModulesButton.setColour(TextButton::textColourOnId, fg);
+    connectToModulesButton.setColour(TextButton::buttonColourId, Colours::white);
+    connectToModulesButton.setColour(TextButton::buttonOnColourId, Colours::ghostwhite);
+
+    addAndMakeVisible(gainSlider);
+    gainSlider.setSliderStyle(Slider::SliderStyle::LinearHorizontal);
+    gainSlider.setColour(Slider::thumbColourId, fg.withLightness(.66f));
+    gainSlider.setNormalisableRange({0., 1.25, .01});
+    gainSlider.setValue(1.);
+    gainSlider.onValueChange = [this] { multiChannelSource->setGain(static_cast<float>(gainSlider.getValue())); };
+    gainSlider.setTextBoxStyle(Slider::TextBoxRight, false, gainSlider.getTextBoxWidth() * .75f,
+                               gainSlider.getTextBoxHeight());
+    gainSlider.setColour(Slider::textBoxTextColourId, fg);
+
+    addAndMakeVisible(gainLabel);
+    gainLabel.attachToComponent(&gainSlider, true);
+    gainLabel.setText("Gain", dontSendNotification);
+    gainLabel.setColour(Label::textColourId, fg);
 
     setSize(1080, 800);
 
@@ -89,7 +116,6 @@ void MainComponent::refreshDevicesAndPorts() {
     }
 }
 
-//==============================================================================
 void MainComponent::paint(juce::Graphics &g) {
     // (Our component is opaque, so we must completely fill the background with a solid colour)
     g.fillAll(Colours::ghostwhite);
@@ -99,17 +125,18 @@ void MainComponent::resized() {
     auto bounds{getLocalBounds()};
     auto padding{5}, xyPadX{75}, xyPadY{100};
     xyController.setBounds(xyPadX, xyPadY / 2, bounds.getWidth() - 2 * xyPadX, bounds.getHeight() - 2 * xyPadY);
-    auto moduleSelectorWidth{static_cast<float>(xyController.getWidth()) / static_cast<float>(NUM_MODULES)};
+    auto moduleSelectorWidth{static_cast<float>(xyController.getWidth() + 1) / static_cast<float>(NUM_MODULES)};
     for (int i{0}; i < moduleSelectors.size(); ++i) {
         moduleSelectors[i]->setBounds(
                 xyPadX + i * moduleSelectorWidth,
                 xyController.getBottom() + padding,
-                moduleSelectorWidth,
+                moduleSelectorWidth - 1,
                 30
         );
     }
-    settingsButton.setBounds(padding, bounds.getBottom() - padding - 20, 50, 20);
+    settingsButton.setBounds(padding, bounds.getBottom() - padding - 20, 60, 20);
     connectToModulesButton.setBounds(xyController.getRight() - 100, xyController.getY() - 25, 100, 20);
+    gainSlider.setBounds(xyController.getX() + 35, xyController.getY() - 25, 250, 20);
 }
 
 void MainComponent::showSettings() {

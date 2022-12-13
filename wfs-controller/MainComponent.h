@@ -46,14 +46,17 @@ private:
 
     void showSettings();
 
-    juce::TextButton settingsButton;
+    TextButton settingsButton;
     SafePointer <DialogWindow> settingsWindow;
 
-    juce::TextButton connectToModulesButton;
+    Slider gainSlider;
+    Label gainLabel;
+
+    TextButton connectToModulesButton;
 
     std::unique_ptr<MultiChannelAudioSource> multiChannelSource;
 
-    std::unique_ptr<juce::FileChooser> fileChooser;
+    std::unique_ptr<FileChooser> fileChooser;
 
     XYController xyController;
     OwnedArray<ComboBox> moduleSelectors;

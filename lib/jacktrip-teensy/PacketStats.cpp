@@ -26,7 +26,8 @@ void PacketStats::printStats() {
                       "SN delta min/mean/max\n"
                       "receive | %9" PRId32 " | %16" PRIu64 "    | %11" PRIu16 " | %d/%.4f/%d µs | %d/%.4f/%d\n"
                       "   send | %9" PRId32 " | %16" PRIu64 "    | %11" PRIu16 " | %d/%.4f/%d µs | %d/%.4f/%d\n"
-                      "  delta | %9" PRId32 " | %16" PRId64 " µs | %11" PRId16 "\n\n",
+                      "  delta | %9" PRId32 " | %16" PRId64 " µs | %11" PRId16 "\n"
+                      "  ratio | %.7f\n\n",
                       totalReceived,
                       lastReceived.TimeStamp, lastReceived.SeqNumber,
                       receiveInterval.min, receiveInterval.mean, receiveInterval.max,
@@ -37,7 +38,8 @@ void PacketStats::printStats() {
                       sendSequence.min, sendSequence.mean, sendSequence.max,
                       totalReceived - totalSent,
                       static_cast<int64_t>(lastReceived.TimeStamp) - static_cast<int64_t>(lastSent.TimeStamp),
-                      static_cast<int16_t>(lastReceived.SeqNumber) - static_cast<int16_t>(lastSent.SeqNumber)
+                      static_cast<int16_t>(lastReceived.SeqNumber) - static_cast<int16_t>(lastSent.SeqNumber),
+                      static_cast<float>(totalReceived) / static_cast<float>(totalSent)
         );
 
         elapsed = 0;

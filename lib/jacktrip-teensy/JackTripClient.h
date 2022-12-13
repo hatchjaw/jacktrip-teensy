@@ -5,8 +5,10 @@
 #ifndef JACKTRIP_TEENSY_JACKTRIPCLIENT_H
 #define JACKTRIP_TEENSY_JACKTRIPCLIENT_H
 
+#define USE_TIMER
 #undef USE_TIMER
 
+#include <functional>
 #include <Audio.h>
 #include <NativeEthernet.h>
 #include <TeensyID.h>
@@ -64,6 +66,8 @@ public:
 
     uint16_t getNumChannels() const { return kNumChannels; };
 
+    void setOnConnected(std::function<void(void)>);
+
 private:
     struct TimeStampStruct {
         char* IP;
@@ -82,7 +86,6 @@ private:
     const uint8_t kNumChannels;
     const uint32_t kUdpPacketSize;
     const uint32_t kAudioPacketSize;
-    const uint32_t kNtpUdpPort{8889};
 
     /**
      * "The heart of your object is it's update() function.
@@ -99,7 +102,7 @@ private:
      * NB assumes that a new packet is ready each time it is called. This may
      * well be a dangerous assumption.
      */
-    void receivePackets();
+    int receivePackets();
 
     /**
      * Check whether a packet received from the JackTrip server is an exit
@@ -183,11 +186,7 @@ private:
     PacketStats packetStats;
     bool showStats{false};
 
-    IPAddress multicastIP{230, 0, 0, 20};
-    uint16_t multicastPort{41815};
-    EthernetUDP timestampMulticaster;
-
-    elapsedMillis timestampInterval{0};
+    std::function<void(void)> *onConnected{nullptr};
 };
 
 

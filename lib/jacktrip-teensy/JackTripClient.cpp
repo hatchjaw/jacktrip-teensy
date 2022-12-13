@@ -20,7 +20,7 @@ JackTripClient::JackTripClient(uint8_t numChannels,
         timer(TeensyTimerTool::GPT1),
 #endif
         udpBuffer(kUdpPacketSize * 16),
-        audioBuffer(kNumChannels, AUDIO_BLOCK_SAMPLES * 3),
+        audioBuffer(kNumChannels, AUDIO_BLOCK_SAMPLES * 4),
         audioBlock(new int16_t *[kNumChannels]) {
 
     // Generate a MAC address (from the program-once area of Teensy's flash
@@ -83,8 +83,6 @@ uint8_t JackTripClient::begin(uint16_t port) {
     timer.begin([this] { updateImpl(); }, timerPeriod);
 #endif
 
-    timestampMulticaster.beginMulticast(multicastIP, multicastPort);
-
     return EthernetUDP::begin(port);
 }
 
@@ -126,6 +124,9 @@ bool JackTripClient::connect(uint16_t timeout) {
         return false;
     } else {
         connected = true;
+//        if (onConnected != nullptr) {
+//            (*onConnected)();
+//        }
     }
 
     serverUdpPort = port;
@@ -149,14 +150,24 @@ void JackTripClient::stop() {
 
 void JackTripClient::update(void) {
 #ifdef USE_TIMER
-    doAudioOutput();
+    doAudioOutputFromAudio();
 #else
     updateImpl();
 #endif
 }
 
 void JackTripClient::updateImpl() {
-    receivePackets();
+    auto received{receivePackets()};
+
+    if (received < 1) {
+//        Serial.printf("Received %d packets\n", received);
+        if (received == 0) {
+            delayMicroseconds(100);
+//            Serial.print("trying again...");
+            received = receivePackets();
+//            Serial.printf(" Received %d packets\n", received);
+        }
+    }
 #ifndef USE_TIMER
     doAudioOutputFromAudio();
 #endif
@@ -173,13 +184,14 @@ bool JackTripClient::isConnected() const {
     return connected;
 }
 
-void JackTripClient::receivePackets() {
-    if (!connected) return;
+int JackTripClient::receivePackets() {
+    if (!connected) return -1;
 
-    int size;
+    auto received{0}, size{0};
 
     // Check for incoming UDP packets. Get as many packets as are available.
     RECEIVE_CONDITION ((size = parsePacket()) > 0) {
+        ++received;
         lastReceive = 0;
 
         if (size == EXIT_PACKET_SIZE && isExitPacket()) {
@@ -189,7 +201,7 @@ void JackTripClient::receivePackets() {
             Serial.printf("  maxcpu: %f %%\n\n", AudioProcessorUsageMax());
 
             stop();
-            return;
+            return received;
         } else if (size != kUdpPacketSize) {
             Serial.println("JackTripClient: Received a malformed packet");
         } else {
@@ -209,8 +221,8 @@ void JackTripClient::receivePackets() {
             // Read the header from the packet received from the server.
             serverHeader = reinterpret_cast<JackTripPacketHeader *>(in);
 
-            if (packetStats.awaitingFirstReceive() || timestampInterval > 1000) {
-                timestampInterval = 0;
+            if (packetStats.awaitingFirstReceive()) { //|| timestampInterval > 1000) {
+//                timestampInterval = 0;
 
                 if (packetStats.awaitingFirstReceive() && showStats) {
                     Serial.println("===============================================================");
@@ -221,33 +233,18 @@ void JackTripClient::receivePackets() {
                     packetHeader.SeqNumber = serverHeader->SeqNumber;
                     Serial.println("===============================================================");
                 }
-
-                // OSC multicast first timestamp...
-                if (1 != timestampMulticaster.beginPacket(multicastIP, multicastPort)) {
-                    Serial.println("Failed to begin packet");
-                }
-//                Serial.printf("\nSending timestamp:  %" PRIu64 "\n", serverHeader->TimeStamp);
-                timestampMulticaster.write(reinterpret_cast<const uint8_t *>(&serverHeader->TimeStamp),
-                                           sizeof(uint64_t));
-                if (1 != timestampMulticaster.endPacket()) {
-                    Serial.println("Failed to send packet");
-                }
             }
 
             packetStats.registerReceive(*serverHeader);
         }
     }
 
-    while ((size = timestampMulticaster.parsePacket()) > 0) {
-        uint64_t timestamp;
-        timestampMulticaster.read(reinterpret_cast<uint8_t *>(&timestamp), size);
-//        Serial.printf("Received timestamp: %" PRIu64 "\n\n", timestamp);
-    }
-
     if (lastReceive > RECEIVE_TIMEOUT_MS) {
         Serial.printf("JackTripClient: Nothing received for %.1f s. Stopping.\n", RECEIVE_TIMEOUT_MS / 1000.f);
         stop();
     }
+
+    return received;
 }
 
 void JackTripClient::sendPacket() {
@@ -285,7 +282,7 @@ void JackTripClient::sendPacket() {
     if (written != kUdpPacketSize) {
         written += write(packet + written, kUdpPacketSize - written);
         if (written != kUdpPacketSize) {
-//            Serial.printf("JackTripClient: Net buffer is too small (wrote %d of %d bytes)\n", written, kUdpPacketSize);
+            Serial.printf("JackTripClient: Net buffer is too small (wrote %d of %d bytes)\n", written, kUdpPacketSize);
         }
     }
     auto result = endPacket();
@@ -364,4 +361,8 @@ bool JackTripClient::isExitPacket() {
 void JackTripClient::setShowStats(bool show, uint16_t intervalMS) {
     showStats = show;
     packetStats.setPrintInterval(intervalMS);
+}
+
+void JackTripClient::setOnConnected(std::function<void(void)> callback) {
+    *onConnected = callback;
 }

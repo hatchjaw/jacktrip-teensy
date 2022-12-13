@@ -1,9 +1,6 @@
-//
-// Created by tar on 27/11/22.
-//
 #include <Audio.h>
 #include <JackTripClient.h>
-#include "Gain/Gain.h"
+#include "SynchroTester/SynchroTester.h"
 
 // Wait for a serial connection before proceeding with execution
 #define WAIT_FOR_SERIAL
@@ -31,23 +28,18 @@ AudioOutputI2S out;
 
 audio_block_t *inputQueue[NUM_JACKTRIP_CHANNELS];
 JackTripClient jtc{NUM_JACKTRIP_CHANNELS, inputQueue, jackTripServerIP};
+SynchroTester s;
 
-Gain g1, g2;
-
-// Server -> UDP (2 channels) -> JTC
-// JTC out 0 -> audio -> Gain1 in 0
-// JTC out 1 -> audio -> Gain2 in 0
-// Gain1 out 0 -> audio -> I2S in 0
-// Gain2 out 0 -> audio -> I2S in 1
-// Gain1 out 0 -> audio -> JTC in 0
-// Gain2 out 0 -> audio -> JTC in 1
-// JTC -> UDP (2 channels) -> Server
-AudioConnection patchCord10(jtc, 0, g1, 0);
-AudioConnection patchCord15(jtc, 1, g2, 0);
-AudioConnection patchCord20(g1, 0, out, 0);
-AudioConnection patchCord25(g2, 0, out, 1);
-AudioConnection patchCord30(g1, 0, jtc, 0);
-AudioConnection patchCord35(g2, 0, jtc, 1);
+// Send input from server back to server.
+AudioConnection patchCord10(jtc, 0, jtc, 0);
+// Send input from server to audio output.
+AudioConnection patchCord20(jtc, 0, out, 0);
+// Send input to synchronicity tester.
+AudioConnection patchCord30(jtc, 0, s, 0);
+// Combine with generated sawtooth.
+AudioConnection patchCord40(s, 0, out, 1);
+// Send synchronicity measure back to server.
+AudioConnection patchCord50(s, 0, jtc, 1);
 
 elapsedMillis performanceReport;
 const uint32_t PERF_REPORT_INTERVAL = 5000;
@@ -68,10 +60,13 @@ void setup() {
 
     Serial.printf("Sampling rate: %f\n", AUDIO_SAMPLE_RATE_EXACT);
     Serial.printf("Audio block samples: %d\n", AUDIO_BLOCK_SAMPLES);
+    Serial.printf("Number of JackTrip channels: %d\n", NUM_JACKTRIP_CHANNELS);
 
 #ifdef SHOW_STATS
     jtc.setShowStats(true, 5'000);
 #endif
+
+//    jtc.setOnConnected([] { s.setParamValue("reset", 1); });
 
     if (!jtc.begin(kLocalUdpPort)) {
         Serial.println("Failed to initialise jacktrip client.");
@@ -81,9 +76,6 @@ void setup() {
     AudioMemory(32);
 
     startAudio();
-
-    g1.setParamValue("gain", .9);
-    g2.setParamValue("gain", .9);
 }
 
 void loop() {

@@ -7,11 +7,12 @@
 
 
 #include <Arduino.h>
+#include "SmoothedParameter.h"
 
 template<typename T>
 class CircularBufferMulti {
 public:
-    explicit CircularBufferMulti(uint8_t numChannels, uint16_t length);
+    CircularBufferMulti(uint8_t numChannels, uint16_t length);
 
     ~CircularBufferMulti();
 
@@ -21,7 +22,7 @@ public:
 
     int getWriteIndex();
 
-    int getReadIndex();
+    float getReadPosition();
 
     void clear();
 
@@ -37,24 +38,26 @@ private:
     const uint8_t kNumChannels;
     const uint16_t kLength;
     const float kFloatLength;
+    const std::pair<float, float> kRwDeltaThresh;
 
     float getReadWriteDelta();
 
-    T interpolateCubic(T* channelData, uint16_t readIdx, float alpha);
+    void setReadPosIncrement();
+
+    T interpolateCubic(T *channelData, uint16_t readIdx, float alpha);
 
     uint16_t wrapIndex(uint16_t index, uint16_t length);
 
     T **buffer;
-    uint16_t writeIndex{0};//, readIndex{0};
+    uint16_t writeIndex{0};
     float readPos{0.f};
-    int64_t numBlockReads{0}, numBlockWrites{0};
+    SmoothedParameter<float> readPosIncrement{1.f};
+    uint64_t numBlockReads{0}, numBlockWrites{0}, numSampleWrites{0}, numSampleReads{0}, blocksReadSinceLastUpdate{0};
+    float readPosAllTime{0.f};
     OperationType lastOp{UNKNOWN};
     uint8_t consecutiveOpCount{1};
-    elapsedMillis statTimer;
+    elapsedMillis statTimer{0};
     elapsedMillis debugTimer{100};
-    bool isDebugging{false};
-
-    bool shouldPrintDebug();
 };
 
 template
