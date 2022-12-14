@@ -34,8 +34,7 @@ const uint16_t kOscMulticastPort{41814};
 AudioControlSGTL5000 audioShield;
 AudioOutputI2S out;
 
-audio_block_t *inputQueue[NUM_JACKTRIP_CHANNELS];
-JackTripClient jtc{NUM_JACKTRIP_CHANNELS, inputQueue, jackTripServerIP};
+JackTripClient jtc{NUM_JACKTRIP_CHANNELS, jackTripServerIP};
 
 EthernetUDP udp;
 

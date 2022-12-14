@@ -5,14 +5,13 @@
 #include "JackTripClient.h"
 
 JackTripClient::JackTripClient(uint8_t numChannels,
-                               audio_block_t **inputQueue,
                                IPAddress &serverIpAddress,
                                uint16_t serverTcpPort) :
-        AudioStream{numChannels, inputQueue},
-        // Assume client and server on same subnet
+        AudioStream{numChannels, new audio_block_t*[numChannels]},
         kNumChannels{numChannels},
         kUdpPacketSize{PACKET_HEADER_SIZE + kNumChannels * AUDIO_BLOCK_SAMPLES * sizeof(uint16_t)},
         kAudioPacketSize{AUDIO_BLOCK_SAMPLES * kNumChannels * 2u},
+        // Assume client and server on same subnet
         clientIP{serverIpAddress},
         serverIP{serverIpAddress},
         serverTcpPort{serverTcpPort},
@@ -20,7 +19,7 @@ JackTripClient::JackTripClient(uint8_t numChannels,
         timer(TeensyTimerTool::GPT1),
 #endif
         udpBuffer(kUdpPacketSize * 16),
-        audioBuffer(kNumChannels, AUDIO_BLOCK_SAMPLES * 4),
+        audioBuffer(kNumChannels, AUDIO_BLOCK_SAMPLES * 8),
         audioBlock(new int16_t *[kNumChannels]) {
 
     // Generate a MAC address (from the program-once area of Teensy's flash
@@ -159,15 +158,15 @@ void JackTripClient::update(void) {
 void JackTripClient::updateImpl() {
     auto received{receivePackets()};
 
-    if (received < 1) {
-//        Serial.printf("Received %d packets\n", received);
-        if (received == 0) {
-            delayMicroseconds(100);
-//            Serial.print("trying again...");
-            received = receivePackets();
-//            Serial.printf(" Received %d packets\n", received);
-        }
-    }
+//    if (received < 1) {
+////        Serial.printf("Received %d packets\n", received);
+//        if (received == 0) {
+//            delayMicroseconds(100);
+////            Serial.print("trying again...");
+//            received = receivePackets();
+////            Serial.printf(" Received %d packets\n", received);
+//        }
+//    }
 #ifndef USE_TIMER
     doAudioOutputFromAudio();
 #endif

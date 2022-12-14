@@ -34,6 +34,8 @@ private:
         READ,
         WRITE
     };
+    static constexpr uint16_t BLOCKS_PER_READ_INCREMENT_UPDATE{1000};
+    static constexpr uint8_t VISUALISER_LENGTH{100};
     const uint32_t kStatInterval{2500};
     const uint8_t kNumChannels;
     const uint16_t kLength;
@@ -52,12 +54,14 @@ private:
     uint16_t writeIndex{0};
     float readPos{0.f};
     SmoothedParameter<float> readPosIncrement{1.f};
-    uint64_t numBlockReads{0}, numBlockWrites{0}, numSampleWrites{0}, numSampleReads{0}, blocksReadSinceLastUpdate{0};
+    uint64_t numBlockReads{0}, numBlockWrites{0}, numSampleWrites{0}, numSampleReads{0};
+    uint32_t blocksReadSinceLastUpdate{0}, blocksWrittenSinceLastUpdate{0};
     float readPosAllTime{0.f};
     OperationType lastOp{UNKNOWN};
     uint8_t consecutiveOpCount{1};
     elapsedMillis statTimer{0};
     elapsedMillis debugTimer{100};
+    char visualiser[VISUALISER_LENGTH + 1]{};
 };
 
 template
