@@ -1,6 +1,6 @@
 # Teensy JackTripClient
 
-This project was developed with the assistance of
+This project has been developed with
 [PlatformIO](https://platformio.org). 
 Supported hardware: Teensy 4.1.
 
@@ -20,19 +20,22 @@ There's a friendly, high-level
 [guide](https://ccrma.stanford.edu/docs/common/IETF.html) 
 to runninig JACK and JackTrip on the CCRMA website. 
 
-### Jack
+### JACK
 
-JackTrip uses [JACK](https://jackaudio.org/) as its audio server. 
-Install or update JACK as per the
-instructions
-
+JackTrip uses [JACK](https://jackaudio.org/) as its audio server.
+```shell
+sudo apt install jackd2
+```
+Or head to the [downloads](https://jackaudio.org/downloads/) page and choose
+your poison.
 
 ### JackTrip
 
 Included here as a submodule for reference. There's a GUI version with 
 installation instructions [here](https://jacktrip.github.io/jacktrip/Build/Linux/).
 The command line version works fine, but you'll want to build it from source
-(as the version on `apt`, for example, is calamitously out of date).
+or find a tarball (the version on `apt`, for example, is calamitously
+out of date).
 Either way, it may be necessary to install QT's websockets module:
 
 ```shell
