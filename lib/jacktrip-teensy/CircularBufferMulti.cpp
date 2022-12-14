@@ -115,7 +115,6 @@ void CircularBufferMulti<T>::write(const T **data, uint16_t len) {
 template<typename T>
 void CircularBufferMulti<T>::read(T **bufferToFill, uint16_t len) {
     auto initialReadPos{readPos};
-//    auto initialReadIncrement{readPosIncrement.getCurrent()};
 
     for (uint16_t n = 0; n < len; n++) {
         // Wrap readPos.
@@ -160,7 +159,7 @@ void CircularBufferMulti<T>::read(T **bufferToFill, uint16_t len) {
         ++numSampleReads;
 
         // Visualise the state of the read-write delta.
-        if (n % 8 == 0) {
+        if (n % 8 == 0) {// && fabsf(increment-1.f) > 1e-3) {
             auto r{static_cast<int>(roundf(100.f * (1.f - (rwDelta / kFloatLength))))};
             auto temp{visualiser[r]};
             visualiser[r] = '#';

@@ -1,15 +1,15 @@
-# Teensy as a JackTrip client
+# Teensy JackTripClient
 
-This project uses [PlatformIO](https://platformio.org). 
+This project was developed with the assistance of
+[PlatformIO](https://platformio.org). 
 Supported hardware: Teensy 4.1.
 
 ```shell
-# Clone the repo
 git clone https://github.com/hatchjaw/jacktrip-teensy
 # Build the program and upload it to a Teensy
 pio run (--upload-port /dev/ttyACM<n>)
 # or upload to all connected Teensies
-./scripts/upload.sh
+./scripts/upload.sh <platformio environment>
 # ...and monitor serial output
 pio device monitor (-p /dev/ttyACM<n>)
 ```
@@ -18,25 +18,28 @@ pio device monitor (-p /dev/ttyACM<n>)
 
 There's a friendly, high-level
 [guide](https://ccrma.stanford.edu/docs/common/IETF.html) 
-to Jack and JackTrip on the CCRMA website.
+to runninig JACK and JackTrip on the CCRMA website. 
 
 ### Jack
 
-JackTrip uses Jack as its audio server. Install or update Jack as per the
+JackTrip uses [JACK](https://jackaudio.org/) as its audio server. 
+Install or update JACK as per the
 instructions
-[here](https://qjackctl.sourceforge.io/qjackctl-index.html#Installation).
+
 
 ### JackTrip
 
-Included here as a submodule for reference. Follow installation 
-instructions [here](https://jacktrip.github.io/jacktrip/Build/Linux/).
-Additionally, it may be necessary to install QT's websockets module:
+Included here as a submodule for reference. There's a GUI version with 
+installation instructions [here](https://jacktrip.github.io/jacktrip/Build/Linux/).
+The command line version works fine, but you'll want to build it from source
+(as the version on `apt`, for example, is calamitously out of date).
+Either way, it may be necessary to install QT's websockets module:
 
 ```shell
 sudo apt install libqt5websockets5-dev
 ```
 
-And, in order to use the gui:
+And, in order to use the GUI:
 
 ```shell
 sudo apt install qml-module-qtquick-controls2
@@ -44,7 +47,9 @@ sudo apt install qml-module-qtquick-controls2
 
 ### QJackCtl / Cadence
 
-You might get on just fine with QJackCtl.
+You might get on just fine with 
+[QJackCtl](https://qjackctl.sourceforge.io/qjackctl-index.html#Installation)
+as an interface to JACK.
 [Cadence](https://kx.studio/Applications:Cadence) potentially offers a better
 experience if you need to connect to an external audio interface (perhaps
 because it's not possible to change the sampling rate of your built-in audio
@@ -54,7 +59,7 @@ once installed, the tools _Catia_ and _Logs_ are very useful.
 
 ### Teensy
 
-[TyTools](https://github.com/Koromix/tytools) are really useful for working with
+[TyTools](https://github.com/Koromix/tytools) are nice for working with
 multiple Teensies.
 
 ### PlatformIO
@@ -64,7 +69,9 @@ Install platformIO's
 or [Teensy's](https://www.pjrc.com/teensy/loader_linux.html). 
 Both... shouldn't be a problem.
 
-`platformio.ini` defines `AUDIO_BLOCK_SAMPLES` which sets Teensy's audio block size.
+`platformio.ini` defines `AUDIO_BLOCK_SAMPLES` which sets Teensy's audio block
+size, which, like the sample rate, must match that used by the machine running
+the JackTrip server.
 
 It _also_ specifies that the GUI Teensy Loader should be used for uploading.
 The CLI version behaves weirdly; it tends to need two runs for the upload
@@ -76,30 +83,38 @@ Uploading .pio/build/teensy41/firmware.hex
 Hangup
 *** [upload] Error 129
 ```
-But relax; if Teensy Loader shows a "Programming" modal
-with a progress bar, all should be well.
+If, however, Teensy Loader shows a "Programming" modal with a progress bar, 
+all should be well.
 
 There's also a script, `scripts/upload.sh` that uses TyTools to automate
-building and uploading to multiple Teensies.
+building and uploading to multiple Teensies, e.g. to upload the WFS sketch to
+all connected Teensies:
+
+```shell
+./scrips/upload wfs
+```
 
 ### Ethernet
 
 The wired connection on the machine running the JackTrip server should be
 set to manual IPv4 mode (i.e. DHCP disabled), with **subnet mask** 
-`255.255.255.0`, **address** matching `jackTripServerIP` as specified in `main.cpp`, 
-and **gateway** `x.x.x.1` (where `x` are the first three octets of **address**).
+`255.255.255.0`, **address** matching `jackTripServerIP` as specified in 
+`main.cpp`, and **gateway** `x.x.x.1` (where `x` are the first three octets of 
+**address**).
 
-If in doubt, try:
+If in doubt, try something like:
 
 - subnet mask: `255.255.255.0`
-- gateway: `192.168.1.1`
-- address: `192.168.1.2`
+- gateway: `192.168.10.1`
+- address: `192.168.10.10`
+
+![NETWORK settings](notes/network-settings.png)
 
 ## Running
 
-Connect a computer running a JackTrip hub server to an ethernet switch.
-Teens(y|ies), running this program, with ethernet shield connected, should be
-attached, by an ethernet cable, to the switch.
+Connect a computer to an ethernet switch. Teens(y|ies), running this program,
+with ethernet shield connected, should be attached, by an ethernet cable, to the
+switch.
 
 If you're using an external audio interface, connect it. Open Cadence, click 
 _Configure_, navigate to _Driver_, and select the appropriate _Output Device_
@@ -107,53 +122,54 @@ _Configure_, navigate to _Driver_, and select the appropriate _Output Device_
 matches the value being sent with each JackTrip UDP packet, as specified in
 [JackTripClient.h](src/JackTripClient.h).
 
+![ALSA settings](notes/jack-alsa.png)
+
 Alternatively run a dummy driver with sample rate and buffer size of your 
 choosing.
+
+![Dummy driver settings](notes/jack-dummy.png)
 
 Verify, either via Cadence or QJackCtl that Jack is running, and 
 doing so at the desired sample rate/buffer size.
 
-After uploading to a Teensy (`pio run`), 
-the program will wait for a serial connection (if the `WAIT_FOR_SERIAL` 
-define is set).
-Start JackTrip on the computer in hub server mode with queue buffer length of 2
-(rather than the default, 4)
-```shell
-jacktrip -S -q2
-``` 
-Specify patching mode (no autopatching) and instruct JackTrip to report
-packet loss, buffer overflow/underruns with
-```shell
-jacktrip -S -q2 -p5 -I5 
-```
-Additionally, set the number of IO channels with, e.g.
+![Cadence overview](notes/cadence.png)
+
+Start JackTrip on the computer in hub server mode (`-S`). In the interests of
+minimising latency, set the queue buffer length (`-q`) to 2 (rather than the
+default, 4). Specify the patching mode (`-p5`, no autopatching) and 
+instruct JackTrip to report diagnostic info every 5 seconds (`-I5`).
+Additionally, set the number of IO channels (`-n`) with, e.g.
 ```shell
 jacktrip -S -q2 -p5 -I5 -n8
 ```
 
-Then open a serial connection to Teensy (`pio device monitor`) and the program 
-will resume.
+If the Teensy sketch has `WAIT_FOR_SERIAL` defined, the program will wait for a
+serial connection. Open a serial connection with 
+`pio device monitor -p /dev/ttyACM<N>` and the program will resume.
 
 Play some audio in an application — e.g. Audacity, Reaper — for which it is
-possible to select jack as the output device. Then use QJackCtl or 
-Cadence (Catia) to route audio from that application to the client, i.e. Teensy,
-which will appear as `__ffff_[clientIP]`.
+possible to select JACK as the output device. Then use QJackCtl or 
+Catia (part of the Cadence suite) to route audio from that application to the 
+client, i.e. Teensy, which will appear as `__ffff_[clientIP]`.
 
-Plug some
-headphones into Teensy and hear the audio that's being delivered from the
-server over UDP. 
-Route audio from the client to system playback; plug some headphones into your 
-computer/audio interface and hear audio that's being sent from Teensy to the 
-server.
+![Jack port routing](notes/catia1.png)
+
+Audio sent to Teensy over UDP via JACK/JackTrip, can be routed to Teensy's
+I<sup>2</sup>S audio output in the usual Teensy Audio Library way, with 
+`AudioConnection` instances.
+
+Audio entering the inputs of a `JackTripClient` instance will be sent back to
+the server over UDP.
 
 The client is resilient to the changing state of the server. With a `loop()`
 set up as follows:
 ```c++
 JackTripClient jtc;
+int timeout{2500};
 // setup, etc.
 void loop() {
     if (!jtc.isConnected()) {
-        jtc.connect(2500);
+        jtc.connect(timeout);
     }
 }
 ```
@@ -166,20 +182,77 @@ receiving Datagrams (timeout)". As far as I can tell, JackTrip is indeed
 receiving datagrams at this point, but `JackTripWorker::mSpawning` is stuck set
 to `true`._
 
-## Control via OSC
+## Clock drift and network jitter
 
-~~Using [oscsend](https://fukuchi.org/works/oscsend/index.html.en):~~
+JackTripClient employs a relatively simple strategy for addressing both of these
+issues. Network operations take place on Teensy's audio hardware interrupt.
+The client converts incoming UDP packets to audio and writes the
+audio data to a circular buffer with an integer write index and a non-integer
+read position.
 
-```shell
-oscsend osc.udp://[teensy IP]:[OSC UDP port] /wfs/pos/[n] i [pos]
-```
+For clock drift, i.e. the differing audio clock speeds between JackTrip server
+and client:
+- Every 1000 packets received from the server, check how many packets were sent
+during the same period;
+- Use the received:sent ratio to set the read position increment;
+  - e.g. if 999 packets were sent for 1000 received, the client is falling 
+behind, so set a read position increment of `1000/999 ~= 1.001`;
+  - e.g. if 1001 packets were sent for 1000 received, the server is running 
+slow, so set a read position increment of `999/1000 = .999`.
 
-~~Or set up Reaper to send OSC messages, and create a custom .ReaperOSC config 
-file (-see `~/.config/REAPER/OSC`)~~
+This strategy should, over the long term, keep the read position at a steady 
+offset behind the write index. 
 
-`oscsend` doesn't expose a way to specify the IP of the local network interface,
-so it's no good for multicast. Instead, use the app in directory 
-`wfs-controller`.
+Network jitter, by comparison, is a short-term phenomenon whereby packets
+may not arrive at regular intervals. For a given interrupt, the client may
+find that no packets are available; at the next iteration there may be two
+packets available, etc. This may occur cyclically over time (probably 
+related to long-term clock drift), and it may also be encountered suddenly
+due to, e.g. the server prioritising operations besides audio and/or network
+functionality (e.g. try unplugging a laptop running as your JackTrip server, and 
+plugging it back in, or opening VS Code...).
+
+The client keeps track of the delta between the write index and the read 
+position:
+- If the delta exceeds an arbitrary (well, *tuned*) high threshold, increase the
+read position increment until the data no longer exceeds that threshold;
+  - do so by a factor of `rwDelta / highThreshold`;
+- if the delta falls below a low threshold, reduce the read position increment;
+  - do so by a factor of `rwDelta / lowThreshold`;
+
+Under such a strategy, the write index and read position should never overlap.
+Under catastrophic jitter conditions, however, the write index may stop 
+advancing altogether, at 
+which point the read position will also come to a halt, which may or may not 
+sound as bad as allowing an overlap to occur.
+
+In any case, the problem reduces to one of tolerances in terms of latency,
+inter-client synchronicity and the perceptual impact of fluctuations in the 
+read position increment on the audio signal being represented. Set a
+low lower read-write delta threshold with the aim of minimising server-client
+latency, and one increases the risk of the read position colliding with the 
+write index Set too narrow an interval between low and high read-write delta 
+thresholds, with the aim of optimising inter-client synchronicity, and it is 
+inevitable, during periods of network jitter, that the read position increment 
+will fluctuate wildly enough to introduce audible artifacts to the output 
+signal.
+
+Write index and read position increments happen by packet-sized chunks, whose
+large steps may give rise to the sort of rapid increment fluctuations described
+above. 
+There may be a more sophisticated strategy, whereby input and output are handled
+concurrently; one for future work.
+
+
+## WFS Control Application
+
+To support the `wfs.cpp` sketch, there is a JUCE app in directory 
+`wfs-controller`. This uses JACK's C API to set up ports and connect to any
+Teensy JackTrip Clients. It notifies the clients of their positions in the
+WFS array, plus the positions of virtual sound sources, via OSC over UDP 
+multicast.
+
+![WFS Controller](notes/wfs-controller.png)
 
 ## Notes
 
@@ -188,35 +261,28 @@ so it's no good for multicast. Instead, use the app in directory
 - A TCP handshake is used to exchange UDP ports between client and server.
 - Client starts to send UDP packets, the server uses the header to initialize 
   jack parameters.
-- Don't run jacktrip with loopback auto-patching. Trust me.
+- That's it; it's really simple.
 
-## TODO
-
-- [ ] Fix clock drift
-- [ ] Conform to Teensy naming conventions?
-- [ ] Autoconfiguration with OSC
-  - or an audio channel containing control data
-- [ ] Quantify latency
-- [ ] Arbitrary audio buffer size, number of channels, bit-depth.
-
-## More Notes/Queries
+## More Notes
 - Sending audio from the server to Teensy, and back to the server, results in
   occasional dropouts; These appear to be delays, either in Teensy sending a
-  UDP buffer, or in the JackTripServer receiving it. Either way, they're 
-  probably due to the relative lack of sophistication in the JackTripClient 
-  implementation.
+  UDP buffer, or in the JackTripServer receiving it.
 - Maximum undistorted level for the audio shield's headphone output is 0.8. 
   Sending anything hotter than that (and back into an audio interface) results
   in a mangling of the signal. Something like modularity applied to sample 
   values; it's weird.
 - JackTrip's UdpDataProtocol class ultimately derives from QThread. For each
   peer that connects to the server, a new instance of UdpDataProtocol, and
-  thus a new thread, is created. Consequently, adding many clients/peers will
-  have an effect on performance, and may even be a contributing factor in the
-  dropouts described above.
-  - JackTrip doesn't support multicast. NetJack does.
+  thus a new thread, is created. JackTrip doesn't support UDP multicast, 
+  and this has ramifications for synchronicity when running multiple clients.
 - Using a dummy driver it's possible to set a very low buffer size, consequently
   `AUDIO_BLOCK_SAMPLES` can be set as low as 8, with (initial) roundtrip latency
   of ~1.5 ms. 4 samples seems to be too small even for a dummy driver. 8 is a 
   little flaky; 16 can yield round-trip latency of as little as 1.8 ms.
-- `FNET_POLL_TIME` in NativeEthernet.h... what's going on there?
+- Things to investigate:
+  - `FNET_POLL_TIME` in NativeEthernet.h
+  - revisit the [QNEthernet](https://github.com/ssilverman/QNEthernet) project,
+which promises better command of the incoming UDP packet queue, but proved to be
+too 
+  - Nudging Teensy's PLL may be useful counterpart to the solution implemented
+for counteracting clock drift and network jitter.
