@@ -38,7 +38,6 @@
 class JackTripClient : public AudioStream, EthernetUDP {
 public:
     JackTripClient(uint8_t numChannels,
-                   audio_block_t **inputQueue,
                    IPAddress &serverIpAddress,
                    uint16_t serverTcpPort = 4464);
 

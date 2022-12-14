@@ -26,8 +26,7 @@ IPAddress jackTripServerIP{192, 168, 10, 10};
 AudioControlSGTL5000 audioShield;
 AudioOutputI2S out;
 
-audio_block_t *inputQueue[NUM_JACKTRIP_CHANNELS];
-JackTripClient jtc{NUM_JACKTRIP_CHANNELS, inputQueue, jackTripServerIP};
+JackTripClient jtc{NUM_JACKTRIP_CHANNELS, jackTripServerIP};
 SynchroTester s;
 
 // Send input from server back to server.

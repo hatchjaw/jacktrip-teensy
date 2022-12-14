@@ -19,7 +19,7 @@ public:
     T &getCurrent();
 
 private:
-    static constexpr T MULTIPLIER{.05f}, THRESHOLD{1e-6};
+    static constexpr T MULTIPLIER{.01f}, THRESHOLD{1e-6};
     T current, target;
 };
 

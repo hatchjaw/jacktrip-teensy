@@ -9,12 +9,21 @@ CircularBufferMulti<T>::CircularBufferMulti(uint8_t numChannels, uint16_t length
         kNumChannels{numChannels},
         kLength{length},
         kFloatLength{static_cast<float>(length)},
-        kRwDeltaThresh(AUDIO_BLOCK_SAMPLES, AUDIO_BLOCK_SAMPLES * 2.f),
+        kRwDeltaThresh(kFloatLength * .15f, kFloatLength * .45f),
         buffer{new T *[numChannels]} {
+
     for (int ch = 0; ch < kNumChannels; ++ch) {
         buffer[ch] = new T[kLength];
     }
+
     clear();
+
+    // Set up the rw-delta visualiser.
+    memset(visualiser, '-', VISUALISER_LENGTH);
+    auto normLoThresh = static_cast<int>(roundf(100.f * (1.f - (kRwDeltaThresh.first / kFloatLength))));
+    auto normHiThresh = static_cast<int>(roundf(100.f * (1.f - (kRwDeltaThresh.second / kFloatLength))));
+    visualiser[normLoThresh] = '<';
+    visualiser[normHiThresh] = '>';
 }
 
 template<typename T>
@@ -43,7 +52,7 @@ void CircularBufferMulti<T>::clear() {
         }
     }
 
-    readPos = kFloatLength * .5f;
+    readPos = kFloatLength * .25f;
     writeIndex = 0;
     numBlockReads = 0;
     numBlockWrites = 0;
@@ -92,6 +101,8 @@ void CircularBufferMulti<T>::write(const T **data, uint16_t len) {
     }
 
     ++numBlockWrites;
+    ++blocksWrittenSinceLastUpdate;
+
     if (lastOp == WRITE) {
         ++consecutiveOpCount;
 //        Serial.printf("CircularBuffer: Extra WRITE (%d)\n", consecutiveOpCount);
@@ -99,8 +110,6 @@ void CircularBufferMulti<T>::write(const T **data, uint16_t len) {
         consecutiveOpCount = 1;
     }
     lastOp = WRITE;
-
-    setReadPosIncrement();
 }
 
 template<typename T>
@@ -121,53 +130,46 @@ void CircularBufferMulti<T>::read(T **bufferToFill, uint16_t len) {
             bufferToFill[ch][n] = interpolateCubic(buffer[ch], static_cast<uint16_t>(readIdx), alpha);
         }
 
-        // Try to keep read roughly a block behind write.
-        // If readPos is more than a block behind writeIndex, there's a risk
-        // of write overtaking read, so speed up.
-        // If less than a block behind, there's a risk of reading garbage,
-        // so slow down.
+        // Try to keep read position a consistent, safe distance behind write
+        // index.
         auto rwDelta{getReadWriteDelta()};
-        auto increment{readPosIncrement.getNext()};
 
         if (rwDelta < kRwDeltaThresh.first) {
-//            readPosIncrement.set(rwDelta / kRwDeltaThresh.first, true);
-//            readPosIncrement.set(.9f, true);
-            increment = .99f;
-//            increment = rwDelta / kRwDeltaThresh.first;
-
-//            if (rwDelta < 10) {
-//                increment = rwDelta / kRwDeltaThresh.first;
-//            }
+            readPosIncrement.set(rwDelta / kRwDeltaThresh.first, true);
 
 //            Serial.printf(
 //                    "Read %" PRId64 " < loThresh behind write (readPos: %f, writeIndex: %d, rwDelta: %f, last+: %f)\n",
-//                    numSampleReads, readPos, writeIndex, getReadWriteDelta(), increment);// readPosIncrement.getCurrent());
-        }
-        else if (rwDelta > kRwDeltaThresh.second) {
-//            readPosIncrement.set(rwDelta / kRwDeltaThresh.second);
-//            readPosIncrement.set(1.5f);
-            increment = 1.01f;
+//                    numSampleReads, readPos, writeIndex, getReadWriteDelta(),increment);
+//                    numSampleReads, readPos, writeIndex, getReadWriteDelta(), readPosIncrement.getCurrent());
+        } else if (rwDelta > kRwDeltaThresh.second) {
+            readPosIncrement.set(rwDelta / kRwDeltaThresh.second);
+
 //            Serial.printf(
 //                    "Read %" PRId64 " > hiThresh behind write (readPos: %f, writeIndex: %d, rwDelta: %f, last+: %f)\n",
-//                    numSampleReads, readPos, writeIndex, getReadWriteDelta(), increment);//readPosIncrement.getCurrent());
+//                    numSampleReads, readPos, writeIndex, getReadWriteDelta(), increment);
+//                    numSampleReads, readPos, writeIndex, getReadWriteDelta(), readPosIncrement.getCurrent());
         }
-//        else {
-////            auto nextIncrement =
-////                    numBlockReads == 0 ? 1.f : static_cast<float>(numBlockWrites) / static_cast<float>(numBlockReads);
-////            readPosIncrement.set(nextIncrement);
-////            Serial.printf(
-////                    "Read %f ok (readPos: %f, writeIndex: %d, rwDelta: %f, last+: %f)\n",
-////                    numSampleReads, readPos, writeIndex, getReadWriteDelta(), readPosIncrement.getCurrent());
-//        }
+        else {
+            readPosIncrement.set(1.f);
+        }
 
-
+        auto increment{readPosIncrement.getNext()};
 //        Serial.printf("readPos increment %f\n", increment);
         readPos += increment;
         readPosAllTime += increment;
         ++numSampleReads;
+
+        // Visualise the state of the read-write delta.
+        if (n % 8 == 0) {
+            auto r{static_cast<int>(roundf(100.f * (1.f - (rwDelta / kFloatLength))))};
+            auto temp{visualiser[r]};
+            visualiser[r] = '#';
+            Serial.printf("%s %f (+%f)\n", visualiser, rwDelta, increment);
+            visualiser[r] = temp;
+        }
     }
 
-    // Just do a sort of wavetable thing if there haven't yet been any writes.
+    // Just do a wavetable thing if there haven't yet been any writes.
     if (0 == numBlockWrites) {
         readPos = initialReadPos;
         readPosAllTime = 0.;
@@ -183,6 +185,8 @@ void CircularBufferMulti<T>::read(T **bufferToFill, uint16_t len) {
         consecutiveOpCount = 1;
     }
     lastOp = READ;
+
+    setReadPosIncrement();
 }
 
 template<typename T>
@@ -190,13 +194,22 @@ void CircularBufferMulti<T>::setReadPosIncrement() {
 //    auto increment{numBlockReads == 0 ? 1.f : static_cast<float>(numBlockWrites) / static_cast<float>(numBlockReads)};
 //    readPosIncrement.set(increment);
 //    return;
-    if (blocksReadSinceLastUpdate > 0 && numBlockWrites % 1000 == 0) {
-        auto nextIncrement{1000.f / static_cast<float>(blocksReadSinceLastUpdate)};
 
-        Serial.printf("blocks read per 1000 writes: %d, nextIncrement: %.7f\n", blocksReadSinceLastUpdate,
-                      nextIncrement);
+    // Update the read increment every N blocks, based on the ratio of writes
+    // to reads during that period.
+    if (blocksReadSinceLastUpdate > 0 && blocksWrittenSinceLastUpdate >= BLOCKS_PER_READ_INCREMENT_UPDATE) {
+        auto nextIncrement{static_cast<float>(blocksWrittenSinceLastUpdate) /
+                           static_cast<float>(blocksReadSinceLastUpdate)};
+
+//        Serial.printf("blocks read per %d writes: %d, nextIncrement: %.7f\n",
+//                      blocksWrittenSinceLastUpdate,
+//                      blocksReadSinceLastUpdate,
+//                      nextIncrement);
+
+        readPosIncrement.set(nextIncrement);
 
         blocksReadSinceLastUpdate = 0;
+        blocksWrittenSinceLastUpdate = 0;
     }
 }
 
