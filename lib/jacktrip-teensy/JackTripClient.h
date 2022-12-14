@@ -21,7 +21,6 @@
 #include "CircularBuffer.h"
 #include "CircularBufferMulti.h"
 #include "PacketStats.h"
-#include "NtpReceiver.h"
 
 #define RECEIVE_CONDITION while
 
