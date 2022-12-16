@@ -14,15 +14,53 @@ pio run (--upload-port /dev/ttyACM<n>)
 pio device monitor (-p /dev/ttyACM<n>)
 ```
 
+## Usage
+JackTripClient is a Teensy audio object with a variable number of I/O channels.
+The number of channels should match the number of channels (`-n`) that JackTrip
+is running.
+
+JackTripClient inherits from EthernetUDP, and there's no need to start ethernet
+or UDP separately.
+
+```c++
+// main.cpp
+JackTripClient jtc{numJackTripChannels, serverIP};
+AudioOutputI2S out;
+
+AudioConnection patchCord1(jtc, 0, out, 0);
+// etc.
+
+void setup() {
+    // Start ethernet, open a UDP port.
+    jtc.begin(udpPort);
+    //...
+}
+
+void loop() {
+    // Try to connect to a JackTrip server.
+    if (!jtc.isConnected()) {
+       jtc.connect(2500);
+    }
+}
+```
+
 ## Setup/Tools
 
-There's a friendly, high-level
-[guide](https://ccrma.stanford.edu/docs/common/IETF.html) 
-to runninig JACK and JackTrip on the CCRMA website. 
+Hardware prerequisites:
+- A Teensy equipped with audio and ethernet adaptors
+- A network switch
+
+Software:
+- [JACK](https://jackaudio.org/)
+- [JackTrip](https://jacktrip.github.io/jacktrip/)
+
+In addition to the installation instructions at those links, there's a friendly,
+high-level [guide](https://ccrma.stanford.edu/docs/common/IETF.html) 
+to running JACK and JackTrip on the CCRMA website. 
 
 ### JACK
 
-JackTrip uses [JACK](https://jackaudio.org/) as its audio server.
+JackTrip uses JACK as its audio server.
 ```shell
 sudo apt install jackd2
 ```
@@ -31,18 +69,17 @@ your poison.
 
 ### JackTrip
 
-Included here as a submodule for reference. There's a GUI version with 
-installation instructions [here](https://jacktrip.github.io/jacktrip/Build/Linux/).
-The command line version works fine, but you'll want to build it from source
-or find a tarball (the version on `apt`, for example, is calamitously
-out of date).
-Either way, it may be necessary to install QT's websockets module:
+Included here as a submodule for reference. The version on `apt` is calamitously
+out-of-date; fortunately there are detailed, cross-platform, installation 
+instructions [here](https://jacktrip.github.io/jacktrip/Build/Linux/).
+
+JackTrip is QT-based; it may be necessary to install QT's websockets module:
 
 ```shell
 sudo apt install libqt5websockets5-dev
 ```
 
-And, in order to use the GUI:
+And, if you want to use the GUI JackTrip app:
 
 ```shell
 sudo apt install qml-module-qtquick-controls2
@@ -67,10 +104,12 @@ multiple Teensies.
 
 ### PlatformIO
 
-Install platformIO's 
-[udev rules](https://docs.platformio.org/en/latest/core/installation/udev-rules.html)
-or [Teensy's](https://www.pjrc.com/teensy/loader_linux.html). 
-Both... shouldn't be a problem.
+PlatformIO offers more flexibility than the Arduino/Teensyduino IDE, such as
+multiple configuration environments, easily setting build flags, etc.
+
+On Linux, install the udev rules provided by 
+[platformIO](https://docs.platformio.org/en/latest/core/installation/udev-rules.html)
+or [Teensy](https://www.pjrc.com/teensy/loader_linux.html).
 
 `platformio.ini` defines `AUDIO_BLOCK_SAMPLES` which sets Teensy's audio block
 size, which, like the sample rate, must match that used by the machine running
@@ -113,7 +152,11 @@ If in doubt, try something like:
 
 ![NETWORK settings](notes/network-settings.png)
 
-## Running
+## More detail on usage
+
+Bearing in mind the number of moving parts, usage can be a little complicated.
+(Consider this an *homage* to the various convoluted guides out there to
+running networked audio systems.)
 
 Connect a computer to an ethernet switch. Teens(y|ies), running this program,
 with ethernet shield connected, should be attached, by an ethernet cable, to the
@@ -259,14 +302,10 @@ multicast.
 
 ## Notes
 
-### Jacktrip protocol (Hub mode)
-
 - A TCP handshake is used to exchange UDP ports between client and server.
-- Client starts to send UDP packets, the server uses the header to initialize 
-  jack parameters.
-- That's it; it's really simple.
-
-## More Notes
+  - Client starts to send UDP packets, the server uses the header to initialize
+    jack parameters.
+  - That's it; it's really simple.
 - Sending audio from the server to Teensy, and back to the server, results in
   occasional dropouts; These appear to be delays, either in Teensy sending a
   UDP buffer, or in the JackTripServer receiving it.
