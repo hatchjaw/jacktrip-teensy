@@ -1,7 +1,7 @@
 # Teensy JackTripClient
 
 This project was developed with the assistance of
-[PlatformIO](https://platformio.org). 
+[PlatformIO](https://platformio.org) v6.1.5. 
 Supported hardware: Teensy 4.1.
 
 ```shell
@@ -18,7 +18,7 @@ pio device monitor (-p /dev/ttyACM<n>)
 
 There's a friendly, high-level
 [guide](https://ccrma.stanford.edu/docs/common/IETF.html) 
-to runninig JACK and JackTrip on the CCRMA website. 
+to running JACK and JackTrip on the CCRMA website. 
 
 ### Jack
 
@@ -29,11 +29,13 @@ instructions
 
 ### JackTrip
 
-Included here as a submodule for reference. There's a GUI version with 
+There's a GUI version with 
 installation instructions [here](https://jacktrip.github.io/jacktrip/Build/Linux/).
-The command line version works fine, but you'll want to build it from source
-(as the version on `apt`, for example, is calamitously out of date).
-Either way, it may be necessary to install QT's websockets module:
+The command line version works fine; on Linux you'll want to build it from source
+(as the version on `apt`, for example, is calamitously out of date); on
+OSX the homebrew version works fine.
+
+Linux: it may be necessary to install QT's websockets module:
 
 ```shell
 sudo apt install libqt5websockets5-dev
@@ -50,10 +52,10 @@ sudo apt install qml-module-qtquick-controls2
 You might get on just fine with 
 [QJackCtl](https://qjackctl.sourceforge.io/qjackctl-index.html#Installation)
 as an interface to JACK.
-[Cadence](https://kx.studio/Applications:Cadence) potentially offers a better
-experience if you need to connect to an external audio interface (perhaps
-because it's not possible to change the sampling rate of your built-in audio
-card). Install Cadence as per the 
+On Linux, [Cadence](https://kx.studio/Applications:Cadence) potentially offers 
+a better experience if you need to connect to an external audio interface
+(perhaps because it's not possible to change the sampling rate of your built-in
+audio card). Install Cadence as per the 
 [instructions](https://github.com/falkTX/Cadence/blob/master/INSTALL.md);
 once installed, the tools _Catia_ and _Logs_ are very useful.
 
@@ -64,10 +66,10 @@ multiple Teensies.
 
 ### PlatformIO
 
-Install platformIO's 
-[udev rules](https://docs.platformio.org/en/latest/core/installation/udev-rules.html)
-or [Teensy's](https://www.pjrc.com/teensy/loader_linux.html). 
-Both... shouldn't be a problem.
+Follow installation instructions 
+[here](https://docs.platformio.org/en/latest/core/installation/methods/index.html). 
+On Linux, install platformIO's 
+[udev rules](https://docs.platformio.org/en/latest/core/installation/udev-rules.html).
 
 `platformio.ini` defines `AUDIO_BLOCK_SAMPLES` which sets Teensy's audio block
 size, which, like the sample rate, must match that used by the machine running

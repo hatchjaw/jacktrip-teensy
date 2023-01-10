@@ -15,14 +15,14 @@ cmake_minimum_required(VERSION 3.15)
 # `project()` command. `project()` sets up some helpful variables that describe source/binary
 # directories, and the current project version. This is a standard CMake command.
 
-project(WFS_CONTROLLER VERSION 0.0.1)
+project(WFS_CONTROLLER VERSION 0.0.6)
 
 # If you've installed JUCE somehow (via a package manager, or directly using the CMake install
 # target), you'll need to tell this project that it depends on the installed copy of JUCE. If you've
 # included JUCE directly in your source tree (perhaps as a submodule), you'll need to tell CMake to
 # include that subdirectory as part of the build.
 
-# cmake flag -DJUCE_INSTALL_PATH="/path/to/JUCE/install"
+# via cmake flag -DJUCE_INSTALL_PATH="/path/to/JUCE/install"
 list(APPEND CMAKE_PREFIX_PATH ${JUCE_INSTALL_PATH})
 find_package(JUCE CONFIG REQUIRED)        # If you've installed JUCE to your system
 # or
