@@ -7,7 +7,7 @@
 JackTripClient::JackTripClient(uint8_t numChannels,
                                IPAddress &serverIpAddress,
                                uint16_t serverTcpPort) :
-        AudioStream{numChannels, new audio_block_t*[numChannels]},
+        AudioStream{numChannels, new audio_block_t *[numChannels]},
         kNumChannels{numChannels},
         kUdpPacketSize{PACKET_HEADER_SIZE + kNumChannels * AUDIO_BLOCK_SAMPLES * sizeof(uint16_t)},
         kAudioPacketSize{AUDIO_BLOCK_SAMPLES * kNumChannels * 2u},

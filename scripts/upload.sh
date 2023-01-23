@@ -8,8 +8,8 @@ fi
 
 environment=$1
 if [ -z "$environment" ]; then
-  echo "Expected to receive a platformIO environment. Defaulting to 'wfs'."
-  environment="wfs"
+  echo "Expected to receive a platformIO environment. Defaulting to 'example'."
+  environment="example"
 fi
 
 # Build

@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------
-name: "Gain"
-Code generated with Faust 2.54.3 (https://faust.grame.fr)
+name: "SyncTester"
+Code generated with Faust 2.54.9 (https://faust.grame.fr)
 Compilation options: -a /usr/local/share/faust/teensy/teensy.cpp -lang cpp -i -es 1 -mcd 16 -uim -single -ftz 0
 ------------------------------------------------------------ */
 
@@ -44,7 +44,7 @@ Compilation options: -a /usr/local/share/faust/teensy/teensy.cpp -lang cpp -i -e
 
 #include <string.h> // for memset
 
-#include "Gain.h"
+#include "SyncTester.h"
 
 // IMPORTANT: in order for MapUI to work, the teensy linker must be g++
 /************************** BEGIN MapUI.h ******************************
@@ -133,7 +133,7 @@ Compilation options: -a /usr/local/share/faust/teensy/teensy.cpp -lang cpp -i -e
 #ifndef __export__
 #define __export__
 
-#define FAUSTVERSION "2.54.3"
+#define FAUSTVERSION "2.54.9"
 
 // Use FAUST_API for code that is part of the external API but is also compiled in faust and libfaust
 // Use LIBFAUST_API for code that is compiled in faust and libfaust
@@ -2589,7 +2589,7 @@ class MetaDataUI {
                 if (strcmp(key, "tooltip") == 0) {
                     // only group tooltip are currently implemented
                     fGroupTooltip = formatTooltip(30, value);
-                } else if (strcmp(key, "hidden") == 0) {
+                } else if ((strcmp(key, "hidden") == 0) && (strcmp(value, "1") == 0)) {
                     fHiddenSet.insert(zone);
                 }
             } else {
@@ -2602,7 +2602,7 @@ class MetaDataUI {
                 else if (strcmp(key, "unit") == 0) {
                     fUnit[zone] = value;
                 }
-                else if (strcmp(key, "hidden") == 0) {
+                else if ((strcmp(key, "hidden") == 0) && (strcmp(value, "1") == 0)) {
                     fHiddenSet.insert(zone);
                 }
                 else if (strcmp(key, "scale") == 0) {
@@ -9835,15 +9835,27 @@ class mydsp : public dsp {
 	
  public:
 	
-	FAUSTFLOAT fHslider0;
+	FAUSTFLOAT fButton0;
+	float fRec0[2];
 	int fSampleRate;
 	
  public:
 	
 	void metadata(Meta* m) { 
 		m->declare("compile_options", "-a /usr/local/share/faust/teensy/teensy.cpp -lang cpp -i -es 1 -mcd 16 -uim -single -ftz 0");
-		m->declare("filename", "Gain.dsp");
-		m->declare("name", "Gain");
+		m->declare("filename", "SyncTester.dsp");
+		m->declare("maths.lib/author", "GRAME");
+		m->declare("maths.lib/copyright", "GRAME");
+		m->declare("maths.lib/license", "LGPL with exception");
+		m->declare("maths.lib/name", "Faust Math Library");
+		m->declare("maths.lib/version", "2.5");
+		m->declare("name", "SyncTester");
+		m->declare("oscillators.lib/lf_sawpos_reset:author", "Bart Brouns, revised by Stéphane Letz");
+		m->declare("oscillators.lib/lf_sawpos_reset:licence", "STK-4.3");
+		m->declare("oscillators.lib/name", "Faust Oscillator Library");
+		m->declare("oscillators.lib/version", "0.3");
+		m->declare("platform.lib/name", "Generic Platform Library");
+		m->declare("platform.lib/version", "0.3");
 	}
 
 	virtual int getNumInputs() {
@@ -9861,10 +9873,13 @@ class mydsp : public dsp {
 	}
 	
 	virtual void instanceResetUserInterface() {
-		fHslider0 = FAUSTFLOAT(1.0f);
+		fButton0 = FAUSTFLOAT(0.0f);
 	}
 	
 	virtual void instanceClear() {
+		for (int l0 = 0; l0 < 2; l0 = l0 + 1) {
+			fRec0[l0] = 0.0f;
+		}
 	}
 	
 	virtual void init(int sample_rate) {
@@ -9886,17 +9901,21 @@ class mydsp : public dsp {
 	}
 	
 	virtual void buildUserInterface(UI* ui_interface) {
-		ui_interface->openVerticalBox("Gain");
-		ui_interface->addHorizontalSlider("gain", &fHslider0, FAUSTFLOAT(1.0f), FAUSTFLOAT(0.0f), FAUSTFLOAT(1.0f), FAUSTFLOAT(0.01f));
+		ui_interface->openVerticalBox("SyncTester");
+		ui_interface->addButton("reset", &fButton0);
 		ui_interface->closeBox();
 	}
 	
 	virtual void compute(int count, FAUSTFLOAT** RESTRICT inputs, FAUSTFLOAT** RESTRICT outputs) {
 		FAUSTFLOAT* input0 = inputs[0];
 		FAUSTFLOAT* output0 = outputs[0];
-		float fSlow0 = float(fHslider0);
+		int iSlow0 = int(float(fButton0));
 		for (int i0 = 0; i0 < count; i0 = i0 + 1) {
-			output0[i0] = FAUSTFLOAT(fSlow0 * float(input0[i0]));
+			float fTemp0 = ((iSlow0) ? 0.0f : fRec0[1] + 3.0517578e-05f);
+			fRec0[0] = fTemp0 - std::floor(fTemp0);
+			float fTemp1 = float(input0[i0]);
+			output0[i0] = FAUSTFLOAT(((fRec0[0] >= fTemp1) ? fTemp1 + (1.0f - fRec0[0]) : fTemp1 - fRec0[0]));
+			fRec0[1] = fRec0[0];
 		}
 	}
 
@@ -9904,7 +9923,7 @@ class mydsp : public dsp {
 
 #ifdef FAUST_UIMACROS
 	
-	#define FAUST_FILE_NAME "Gain.dsp"
+	#define FAUST_FILE_NAME "SyncTester.dsp"
 	#define FAUST_CLASS_NAME "mydsp"
 	#define FAUST_COMPILATION_OPIONS "-a /usr/local/share/faust/teensy/teensy.cpp -lang cpp -i -es 1 -mcd 16 -uim -single -ftz 0"
 	#define FAUST_INPUTS 1
@@ -9912,10 +9931,10 @@ class mydsp : public dsp {
 	#define FAUST_ACTIVES 1
 	#define FAUST_PASSIVES 0
 
-	FAUST_ADDHORIZONTALSLIDER("gain", fHslider0, 1.0f, 0.0f, 1.0f, 0.01f);
+	FAUST_ADDBUTTON("reset", fButton0);
 
 	#define FAUST_LIST_ACTIVES(p) \
-		p(HORIZONTALSLIDER, gain, "gain", fHslider0, 1.0f, 0.0f, 1.0f, 0.01f) \
+		p(BUTTON, reset, "reset", fButton0, 0.0f, 0.0f, 1.0f, 1.0f) \
 
 	#define FAUST_LIST_PASSIVES(p) \
 
@@ -9936,7 +9955,7 @@ std::list<GUI*> GUI::fGuiList;
 ztimedmap GUI::gTimedZoneMap;
 #endif
 
-Gain::Gain() : AudioStream(FAUST_INPUTS, new audio_block_t*[FAUST_INPUTS])
+SyncTester::SyncTester() : AudioStream(FAUST_INPUTS, new audio_block_t*[FAUST_INPUTS])
 {
 #ifdef NVOICES
     int nvoices = NVOICES;
@@ -9978,7 +9997,7 @@ Gain::Gain() : AudioStream(FAUST_INPUTS, new audio_block_t*[FAUST_INPUTS])
 #endif
 }
 
-Gain::~Gain()
+SyncTester::~SyncTester()
 {
     delete fDSP;
     delete fUI;
@@ -9997,7 +10016,7 @@ Gain::~Gain()
 }
 
 template <int INPUTS, int OUTPUTS>
-void Gain::updateImp(void)
+void SyncTester::updateImp(void)
 {
 #if MIDICTRL
     // Process the MIDI messages received by the Teensy
@@ -10038,14 +10057,14 @@ void Gain::updateImp(void)
     }
 }
 
-void Gain::update(void) { updateImp<FAUST_INPUTS, FAUST_OUTPUTS>(); }
+void SyncTester::update(void) { updateImp<FAUST_INPUTS, FAUST_OUTPUTS>(); }
 
-void Gain::setParamValue(const std::string& path, float value)
+void SyncTester::setParamValue(const std::string& path, float value)
 {
     fUI->setParamValue(path, value);
 }
 
-float Gain::getParamValue(const std::string& path)
+float SyncTester::getParamValue(const std::string& path)
 {
     return fUI->getParamValue(path);
 }
