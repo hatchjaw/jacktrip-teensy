@@ -274,7 +274,7 @@ concurrently; one for future work.
 ## Examples
 
 A couple of basic examples can be found here. There is also a Wave Field
-Synthesis example at [https://github.com/hatchjaw/teensy-wfs]().
+Synthesis example at <https://github.com/hatchjaw/teensy-wfs>
 
 ## Notes
 
