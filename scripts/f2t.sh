@@ -1,4 +1,7 @@
 #!/bin/bash
+
+# Wrapper for faust2teensy
+
 file=$1
 faustFlags=${@:2}
 
@@ -8,7 +11,7 @@ fi
 
 # Move to directory holding the dsp file.
 dir=$(dirname "$(realpath "$1")")
-cd $dir || exit 1
+cd "$dir" || exit 1
 
 if [[ $file == *.dsp ]]; then
   name=$(basename "$file" .dsp)

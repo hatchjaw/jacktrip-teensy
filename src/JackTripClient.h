@@ -5,9 +5,6 @@
 #ifndef JACKTRIP_TEENSY_JACKTRIPCLIENT_H
 #define JACKTRIP_TEENSY_JACKTRIPCLIENT_H
 
-#define USE_TIMER
-#undef USE_TIMER
-
 #include <functional>
 #include <Audio.h>
 #include <NativeEthernet.h>
