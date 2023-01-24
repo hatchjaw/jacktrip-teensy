@@ -34,6 +34,9 @@ AudioConnection patchCord2(jtc, 1, out, 0);
 AudioConnection patchCord3(jtc, 0, jtc, 0);
 AudioConnection patchCord4(jtc, 1, jtc, 1);
 
+elapsedMillis performanceReport;
+const uint32_t PERF_REPORT_INTERVAL = 5000;
+
 void setup() {
 #ifdef WAIT_FOR_SERIAL
     while (!Serial);

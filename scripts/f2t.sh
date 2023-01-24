@@ -1,4 +1,7 @@
 #!/bin/bash
+
+# Wrapper for faust2teensy
+
 file=$1
 faustFlags=${@:2}
 
