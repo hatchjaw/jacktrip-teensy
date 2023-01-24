@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Compiles a pio environment and uploads it to all connected Teensies.
+
 if ! command -v tycmd &>/dev/null; then
   echo "Error: requires tytools, which were not found https://github.com/Koromix/tytools" >&2
   echo
@@ -8,15 +10,15 @@ fi
 
 environment=$1
 if [ -z "$environment" ]; then
-  echo "Expected to receive a platformIO environment. Defaulting to 'wfs'."
-  environment="wfs"
+  echo "Expected to receive a platformIO environment. Defaulting to 'example'."
+  environment="example"
 fi
 
 # Build
 cd "$(dirname "$(realpath "$0")")"/.. || exit 1
 # Run
 pio run -e "$environment"
-# GTFO if pio's exited unhappily
+# GTFO if pio exited unhappily
 if [ $? -eq 1 ]; then
     exit 1
 fi

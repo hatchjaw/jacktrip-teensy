@@ -22,8 +22,8 @@
  
  ************************************************************************/
 
-#ifndef faust_SynchroTester_h_
-#define faust_SynchroTester_h_
+#ifndef faust_SyncTester_h_
+#define faust_SyncTester_h_
 
 #include <string>
 
@@ -41,12 +41,12 @@ class MidiUI;
 class teensy_midi;
 #endif
 
-class SynchroTester : public AudioStream
+class SyncTester : public AudioStream
 {
     public:
     
-        SynchroTester();
-        ~SynchroTester();
+        SyncTester();
+        ~SyncTester();
     
         virtual void update(void);
     

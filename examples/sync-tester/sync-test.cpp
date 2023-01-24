@@ -1,6 +1,6 @@
 #include <Audio.h>
 #include <JackTripClient.h>
-#include "SynchroTester/SynchroTester.h"
+#include "SyncTester/SyncTester.h"
 
 // Wait for a serial connection before proceeding with execution
 #define WAIT_FOR_SERIAL
@@ -27,18 +27,18 @@ AudioControlSGTL5000 audioShield;
 AudioOutputI2S out;
 
 JackTripClient jtc{NUM_JACKTRIP_CHANNELS, jackTripServerIP};
-SynchroTester s;
+SyncTester st;
 
 // Send input from server back to server.
 AudioConnection patchCord10(jtc, 0, jtc, 0);
 // Send input from server to audio output.
 AudioConnection patchCord20(jtc, 0, out, 0);
 // Send input to synchronicity tester.
-AudioConnection patchCord30(jtc, 0, s, 0);
+AudioConnection patchCord30(jtc, 0, st, 0);
 // Combine with generated sawtooth.
-AudioConnection patchCord40(s, 0, out, 1);
+AudioConnection patchCord40(st, 0, out, 1);
 // Send synchronicity measure back to server.
-AudioConnection patchCord50(s, 0, jtc, 1);
+AudioConnection patchCord50(st, 0, jtc, 1);
 
 elapsedMillis performanceReport;
 const uint32_t PERF_REPORT_INTERVAL = 5000;

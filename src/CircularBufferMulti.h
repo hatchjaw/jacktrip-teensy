@@ -12,7 +12,12 @@
 template<typename T>
 class CircularBufferMulti {
 public:
-    CircularBufferMulti(uint8_t numChannels, uint16_t length);
+    enum class DebugMode {
+        NONE,
+        RW_DELTA_VISUALISER,
+    };
+
+    CircularBufferMulti(uint8_t numChannels, uint16_t length, DebugMode debugMode = DebugMode::NONE);
 
     ~CircularBufferMulti();
 
@@ -62,6 +67,7 @@ private:
     elapsedMillis statTimer{0};
     elapsedMillis debugTimer{100};
     char visualiser[VISUALISER_LENGTH + 1]{};
+    DebugMode debugMode{DebugMode::NONE};
 };
 
 template

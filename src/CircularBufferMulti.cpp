@@ -5,12 +5,13 @@
 #include "CircularBufferMulti.h"
 
 template<typename T>
-CircularBufferMulti<T>::CircularBufferMulti(uint8_t numChannels, uint16_t length) :
+CircularBufferMulti<T>::CircularBufferMulti(uint8_t numChannels, uint16_t length, DebugMode debugMode) :
         kNumChannels{numChannels},
         kLength{length},
         kFloatLength{static_cast<float>(length)},
         kRwDeltaThresh(kFloatLength * .15f, kFloatLength * .45f),
-        buffer{new T *[numChannels]} {
+        buffer{new T *[numChannels]},
+        debugMode{debugMode} {
 
     for (int ch = 0; ch < kNumChannels; ++ch) {
         buffer[ch] = new T[kLength];
@@ -18,12 +19,14 @@ CircularBufferMulti<T>::CircularBufferMulti(uint8_t numChannels, uint16_t length
 
     clear();
 
-    // Set up the rw-delta visualiser.
-    memset(visualiser, '-', VISUALISER_LENGTH);
-    auto normLoThresh = static_cast<int>(roundf(100.f * (1.f - (kRwDeltaThresh.first / kFloatLength))));
-    auto normHiThresh = static_cast<int>(roundf(100.f * (1.f - (kRwDeltaThresh.second / kFloatLength))));
-    visualiser[normLoThresh] = '<';
-    visualiser[normHiThresh] = '>';
+    if (debugMode == DebugMode::RW_DELTA_VISUALISER) {
+        // Set up the rw-delta visualiser.
+        memset(visualiser, '-', VISUALISER_LENGTH);
+        auto normLoThresh = static_cast<int>(roundf(100.f * (1.f - (kRwDeltaThresh.first / kFloatLength))));
+        auto normHiThresh = static_cast<int>(roundf(100.f * (1.f - (kRwDeltaThresh.second / kFloatLength))));
+        visualiser[normLoThresh] = '<';
+        visualiser[normHiThresh] = '>';
+    }
 }
 
 template<typename T>
@@ -147,8 +150,7 @@ void CircularBufferMulti<T>::read(T **bufferToFill, uint16_t len) {
 //                    "Read %" PRId64 " > hiThresh behind write (readPos: %f, writeIndex: %d, rwDelta: %f, last+: %f)\n",
 //                    numSampleReads, readPos, writeIndex, getReadWriteDelta(), increment);
 //                    numSampleReads, readPos, writeIndex, getReadWriteDelta(), readPosIncrement.getCurrent());
-        }
-        else {
+        } else {
             readPosIncrement.set(1.f);
         }
 
@@ -159,7 +161,7 @@ void CircularBufferMulti<T>::read(T **bufferToFill, uint16_t len) {
         ++numSampleReads;
 
         // Visualise the state of the read-write delta.
-        if (n % 8 == 0) {// && fabsf(increment-1.f) > 1e-3) {
+        if (debugMode == DebugMode::RW_DELTA_VISUALISER && n % 8 == 0) {
             auto r{static_cast<int>(roundf(100.f * (1.f - (rwDelta / kFloatLength))))};
             auto temp{visualiser[r]};
             visualiser[r] = '#';
