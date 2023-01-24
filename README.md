@@ -1,26 +1,9 @@
 # Teensy JackTripClient
 
-This project has been developed with
-[PlatformIO](https://platformio.org). 
-Supported hardware: Teensy 4.1.
+A JackTrip client for the Teensy audio library.
 
-```shell
-git clone https://github.com/hatchjaw/jacktrip-teensy
-# Build the program and upload it to a Teensy
-pio run (--upload-port /dev/ttyACM<n>)
-# or upload to all connected Teensies
-./scripts/upload.sh <platformio environment>
-# ...and monitor serial output
-pio device monitor (-p /dev/ttyACM<n>)
-```
-
-## Usage
-JackTripClient is a Teensy audio object with a variable number of I/O channels.
-The number of channels should match the number of channels (`-n`) that JackTrip
-is running.
-
-JackTripClient inherits from EthernetUDP, and there's no need to start ethernet
-or UDP separately.
+JackTripClient inherits from EthernetUDP; there's no need to start ethernet or 
+UDP separately.
 
 ```c++
 // main.cpp
@@ -47,8 +30,7 @@ void loop() {
 ## Setup/Tools
 
 Hardware prerequisites:
-- A Teensy equipped with audio and ethernet adaptors
-- A network switch
+- A Teensy 4.1 equipped with audio and ethernet shields
 
 Software:
 - [JACK](https://jackaudio.org/)
@@ -69,9 +51,9 @@ your poison.
 
 ### JackTrip
 
-Included here as a submodule for reference. The version on `apt` is calamitously
-out-of-date; fortunately there are detailed, cross-platform, installation 
-instructions [here](https://jacktrip.github.io/jacktrip/Build/Linux/).
+The version on `apt` is calamitously out-of-date; fortunately there are 
+detailed, cross-platform, installation instructions
+[here](https://jacktrip.github.io/jacktrip/Build/Linux/).
 
 JackTrip is QT-based; it may be necessary to install QT's websockets module:
 
@@ -155,8 +137,6 @@ If in doubt, try something like:
 ## More detail on usage
 
 Bearing in mind the number of moving parts, usage can be a little complicated.
-(Consider this an *homage* to the various convoluted guides out there to
-running networked audio systems.)
 
 Connect a computer to an ethernet switch. Teens(y|ies), running this program,
 with ethernet shield connected, should be attached, by an ethernet cable, to the
@@ -289,16 +269,10 @@ above.
 There may be a more sophisticated strategy, whereby input and output are handled
 concurrently; one for future work.
 
+## Examples
 
-## WFS Control Application
-
-To support the `wfs.cpp` sketch, there is a JUCE app in directory 
-`wfs-controller`. This uses JACK's C API to set up ports and connect to any
-Teensy JackTrip Clients. It notifies the clients of their positions in the
-WFS array, plus the positions of virtual sound sources, via OSC over UDP 
-multicast.
-
-![WFS Controller](notes/wfs-controller.png)
+A couple of basic examples can be found here. There is also a Wave Field 
+Synthesis example at [https://github.com/hatchjaw/teensy-wfs]().
 
 ## Notes
 
