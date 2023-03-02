@@ -14,16 +14,16 @@ AudioConnection patchCord1(jtc, 0, out, 0);
 // etc.
 
 void setup() {
-// Start ethernet, open a UDP port.
-jtc.begin(udpPort);
-//...
+  // Start ethernet, open a UDP port.
+  jtc.begin(udpPort);
+  //...
 }
 
 void loop() {
-// Try to connect to a JackTrip server.
-if (!jtc.isConnected()) {
-jtc.connect(2500);
-}
+  // Try to connect to a JackTrip server.
+  if (!jtc.isConnected()) {
+    jtc.connect(2500);
+  }
 }
 ```
 
@@ -48,6 +48,11 @@ sudo apt install jackd2
 ```
 Or head to the [downloads](https://jackaudio.org/downloads/) page and choose
 your poison.
+
+On OS X (via `brew install jack`), running JACK is straightforward enough. As 
+far as I'm aware, however, there's no way to use JACK as the system audio host,
+which complicates the matter of using `jack_connect` to establish connections
+(between local audio applications and remote JackTrip clients).
 
 ### JackTrip
 
