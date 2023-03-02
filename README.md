@@ -239,11 +239,11 @@ offset behind the write index.
 Network jitter, by comparison, is a short-term phenomenon whereby packets
 may not arrive at regular intervals. For a given interrupt, the client may
 find that no packets are available; at the next iteration there may be two
-packets available, etc. This may occur cyclically over time (probably
-related to long-term clock drift), and it may also be encountered suddenly
-due to, e.g. the server prioritising operations besides audio and/or network
-functionality (e.g. try unplugging a laptop running as your JackTrip server, and
-plugging it back in, or opening VS Code...).
+packets available, etc. This may occur cyclically over time (related to 
+long-term clock drift), and it may also be encountered suddenly due to, e.g. 
+the server prioritising operations besides audio and/or network functionality 
+(e.g. try unplugging a laptop running as your JackTrip server, and plugging it 
+back in, or opening VS Code...).
 
 The client keeps track of the delta between the write index and the read
 position:
