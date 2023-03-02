@@ -29,7 +29,7 @@ JackTripClient jtc{NUM_JACKTRIP_CHANNELS, jackTripServerIP};
 
 // UDP in to I2C out.
 AudioConnection patchCord1(jtc, 0, out, 0);
-AudioConnection patchCord2(jtc, 1, out, 0);
+AudioConnection patchCord2(jtc, 1, out, 1);
 // Patch JTC back to itself for UDP out.
 AudioConnection patchCord3(jtc, 0, jtc, 0);
 AudioConnection patchCord4(jtc, 1, jtc, 1);
@@ -53,6 +53,7 @@ void setup() {
 
     AudioMemory(32);
     audioShield.enable();
+    audioShield.volume(.8f);
 }
 
 void loop() {
