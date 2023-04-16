@@ -5,7 +5,6 @@
 #ifndef JACKTRIP_TEENSY_JACKTRIPCLIENT_H
 #define JACKTRIP_TEENSY_JACKTRIPCLIENT_H
 
-#include <functional>
 #include <Audio.h>
 #include <NativeEthernet.h>
 #include <TeensyID.h>
@@ -60,8 +59,6 @@ public:
     void setShowStats(bool show, uint16_t intervalMS = 1'000);
 
     uint16_t getNumChannels() const { return kNumChannels; };
-
-    void setOnConnected(std::function<void(void)>);
 
 private:
     struct TimeStampStruct {
@@ -143,16 +140,6 @@ private:
     elapsedMillis lastReceive{0};
 
     /**
-     * "The final required component is inputQueueArray[], which should be a
-     * private variable.
-     * The size must match the number passed to the AudioStream constructor."
-     *
-     * ...Except, in order to permit specifying the number of channels, the
-     * input queue is passed in as a parameter.
-     */
-//    audio_block_t *inputQueueArray[NUM_JACKTRIP_CHANNELS]{};
-
-    /**
      * The header to send with every outgoing JackTrip packet.
      * TimeStamp and SeqNumber should be incremented accordingly.
      */
@@ -180,8 +167,6 @@ private:
 
     PacketStats packetStats;
     bool showStats{false};
-
-    std::function<void(void)> *onConnected{nullptr};
 };
 
 

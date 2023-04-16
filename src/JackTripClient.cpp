@@ -124,7 +124,7 @@ bool JackTripClient::connect(uint16_t timeout) {
     } else {
         connected = true;
 //        if (onConnected != nullptr) {
-//            (*onConnected)();
+//            onConnected();
 //        }
     }
 
@@ -360,8 +360,4 @@ bool JackTripClient::isExitPacket() {
 void JackTripClient::setShowStats(bool show, uint16_t intervalMS) {
     showStats = show;
     packetStats.setPrintInterval(intervalMS);
-}
-
-void JackTripClient::setOnConnected(std::function<void(void)> callback) {
-    *onConnected = callback;
 }
